@@ -1,39 +1,45 @@
 {
-	"name": "solid-tom-ui",
-	"version": "1.0.7",
-	"description": "SolidJS UI component library (Ant Design–inspired, Tailwind CSS + DaisyUI)",
-	"type": "module",
-	"license": "MIT",
-	"keywords": [
-		"solidjs",
-		"ui",
-		"components",
-		"tailwindcss",
-		"daisyui",
-		"ant-design"
-	],
-	"exports": {
-		".": {
-			"import": "./lib.js",
-			"types": "./lib.d.ts"
-		},
-		"./styles": "./solid-ui.css"
-	},
-	"main": "./lib.js",
-	"module": "./lib.js",
-	"types": "./lib.d.ts",
-	"sideEffects": [
-		"**/*.css"
-	],
-	"peerDependencies": {
-		"@tanstack/solid-table": ">=8.0.0",
-		"@tanstack/solid-virtual": ">=3.0.0",
-		"class-variance-authority": ">=0.7.0",
-		"clsx": ">=2.0.0",
-		"imask": ">=7.0.0",
-		"lucide-solid": ">=0.400.0",
-		"qrcode": ">=1.5.0",
-		"solid-js": ">=1.8.0",
-		"tailwind-merge": ">=3.0.0"
-	}
+  "name": "solid-tom-ui",
+  "version": "1.0.8",
+  "description": "SolidJS UI component library (Ant Design–inspired, Tailwind CSS + DaisyUI)",
+  "homepage": "https://solid-tom-ui.netlify.app/",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/truongtom1993/solid-tom-ui.git"
+  },
+  "author": "Truong Tom",
+  "type": "module",
+  "license": "MIT",
+  "keywords": [
+    "solidjs",
+    "ui",
+    "components",
+    "tailwindcss",
+    "daisyui",
+    "ant-design"
+  ],
+  "exports": {
+    ".": {
+      "import": "./lib.js",
+      "types": "./lib.d.ts"
+    },
+    "./styles": "./solid-ui.css"
+  },
+  "main": "./lib.js",
+  "module": "./lib.js",
+  "types": "./lib.d.ts",
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "peerDependencies": {
+    "@tanstack/solid-table": ">=8.0.0",
+    "@tanstack/solid-virtual": ">=3.0.0",
+    "class-variance-authority": ">=0.7.0",
+    "clsx": ">=2.0.0",
+    "imask": ">=7.0.0",
+    "lucide-solid": ">=0.400.0",
+    "qrcode": ">=1.5.0",
+    "solid-js": ">=1.8.0",
+    "tailwind-merge": ">=3.0.0"
+  }
 }
