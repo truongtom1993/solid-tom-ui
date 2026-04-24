@@ -1,0 +1,2 @@
+import{Slider as e}from"../../slider/slider.js";import{createComponent as t}from"solid-js/web";import{splitProps as n}from"solid-js";var r=(r=>{let[,i]=n(r,[`type`]);return t(e,i)});export{r as InputRange};
+//# sourceMappingURL=input-range.js.map

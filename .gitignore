@@ -1,0 +1,2 @@
+# Override global gitignore: allow dist folder
+!dist

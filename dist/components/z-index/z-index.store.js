@@ -1,0 +1,2 @@
+var e=new Map;function t(t,n){let r=`${t}@${n}`,i=e.get(r);i||(i=new Set,e.set(r,i));let a=0;for(;i.has(a);)a++;return i.add(a),{zIndex:n+a,registryKey:r,offset:a}}function n(t,n){let r=e.get(t);r&&(r.delete(n),r.size===0&&e.delete(t))}var r=0,i=``;function a(){r===0&&(i=document.body.style.overflow,document.body.style.overflow=`hidden`),r++}function o(){r<=0||(r--,r===0&&(document.body.style.overflow=i,i=``))}export{t as acquire,a as acquireScrollLock,n as release,o as releaseScrollLock};
+//# sourceMappingURL=z-index.store.js.map

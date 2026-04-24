@@ -1,0 +1,4 @@
+export { Table } from './table';
+export type { TableProps, TableStyleProps, TableSize, TableClassNames, TableZebra, TableColumnFixed, TableScroll, TableVirtualOptions, TableExpandedOptions, TableSelectionOptions, TableHeaderCellRenderProps, TableCellRenderProps, TableRowRenderProps, TableCellTooltipOptions, } from './table.types';
+export { createColumnHelper, type ColumnDef, type Table as TableInstance, type Row, type Cell, type Header, type HeaderGroup, type Column, type RowSelectionState, type SortingState, type ColumnFiltersState, type VisibilityState, type PaginationState, type CellContext, type HeaderContext, type ColumnDef as ColumnDefinition, } from '@tanstack/solid-table';
+//# sourceMappingURL=index.d.ts.map

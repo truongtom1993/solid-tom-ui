@@ -1,0 +1,2 @@
+import{createComponent as e}from"solid-js/web";import{Show as t}from"solid-js";function n(n,r){return i=>{let a=()=>i[r.preRender]??!1,o=()=>r?.when?i[r.when]??!0:!0;return a()?e(n,i):e(t,{get when(){return o()},keyed:!0,get children(){return e(n,i)}})}}export{n as conditionalRender};
+//# sourceMappingURL=hoc.js.map

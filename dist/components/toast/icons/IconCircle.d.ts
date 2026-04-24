@@ -1,0 +1,9 @@
+import { Component } from 'solid-js';
+export declare const MainCircle: Component<{
+    fill: string;
+}>;
+export declare const SecondaryCircle: Component<{
+    fill: string;
+    begin?: string;
+}>;
+//# sourceMappingURL=IconCircle.d.ts.map

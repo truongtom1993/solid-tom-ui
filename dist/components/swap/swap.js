@@ -1,0 +1,2 @@
+import{cn as e}from"../../utils/cn.js";import{className as t,effect as n,insert as r,template as i}from"solid-js/web";var a=i(`<label><input type=checkbox><div class=swap-on></div><div class=swap-off></div><div class=swap-indeterminate>`),o=i=>(()=>{var o=a(),s=o.firstChild,c=s.nextSibling,l=c.nextSibling;return s.addEventListener(`change`,e=>{i?.onChange?.(e.target.checked)}),r(c,()=>i.item1),r(l,()=>i.item2),n(()=>t(o,e(`swap`,i.effect===`flip`?`swap-flip`:i.effect===`rotate`?`swap-rotate`:``))),o})();export{o as Swap};
+//# sourceMappingURL=swap.js.map

@@ -1,0 +1,1 @@
+{"version":3,"file":"modalContext.d.ts","sourceRoot":"","sources":["../../../src/components/modal/modalContext.tsx"],"names":[],"mappings":"AACA,OAAO,EAAkB,SAAS,EAAE,MAAM,SAAS,CAAC;AAIpD,KAAK,aAAa,GAAG;IACnB,OAAO,EAAE,MAAM,IAAI,CAAC;CACrB,CAAC;AAEF,wBAAgB,WAAW,CAAC,OAAO,EAAE,IAAI,CAAC,SAAS,EAAE,MAAM,GAAG,WAAW,CAAC,GAAG,aAAa,CA8CzF;AAED,wBAAgB,cAAc,SAG7B"}

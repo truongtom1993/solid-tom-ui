@@ -1,0 +1,2 @@
+import{createSignal as e}from"solid-js";var[t,n]=e(new Set,{equals:!1}),r={openIds:t,open:e=>n(t=>{if(t.has(e))return t;let n=new Set(t);return n.add(e),n}),close:e=>n(t=>{if(!t.has(e))return t;let n=new Set(t);return n.delete(e),n}),closeAll:()=>n(new Set),isOpen:e=>t().has(e)};export{r as dropdownStore};
+//# sourceMappingURL=dropdown.store.js.map

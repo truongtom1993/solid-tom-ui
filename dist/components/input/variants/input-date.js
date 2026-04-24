@@ -1,0 +1,2 @@
+import{DEFAULT_PROPS as e}from"../input.utils.js";import{InputText as t}from"./input-text.js";import{createComponent as n,mergeProps as r}from"solid-js/web";import{createUniqueId as i,mergeProps as a}from"solid-js";var o=(o=>{let s=i();return o=a({...e,id:s},o),n(t,r(o,{type:`date`,typeOrigin:`date`,maskOptions:void 0,allowClear:!1}))});export{o as InputDate};
+//# sourceMappingURL=input-date.js.map

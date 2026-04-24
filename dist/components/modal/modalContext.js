@@ -1,0 +1,2 @@
+import{ComponentModal as e}from"./modal.js";import{createComponent as t,createRoot as n,createSignal as r}from"solid-js";var i=[];function a(a){let o=null,s=null,c=!1,l=e=>{if(c)return;c=!0,s?.(!1),e&&a.onClose?.();let t=i.indexOf(u);t>-1&&i.splice(t,1),setTimeout(()=>{o?.()},150)};n(n=>{o=n;let[i,c]=r(!0);s=c,t(e,{...a,get open(){return i()},preRender:!1,onClose:()=>l(!0)})});let u={destroy:()=>l(!1)};return i.push(u),u}function o(){[...i].forEach(e=>e.destroy())}export{o as closeAllModals,a as createModal};
+//# sourceMappingURL=modalContext.js.map
