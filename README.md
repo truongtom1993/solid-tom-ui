@@ -1,8 +1,17 @@
-# solid-ui
+# solid-tom-ui
 
-> A high-performance, easy-to-use UI component library for [SolidJS](https://solidjs.com), inspired by Ant Design.
+> A blazing-fast, beautifully crafted UI component library for [SolidJS](https://solidjs.com), inspired by Ant Design.
 
-Built on **Tailwind CSS 4** and **DaisyUI 5**, leveraging SolidJS fine-grained reactivity for minimal re-renders and optimal bundle size.
+**Entire library ships at just ~1.5 MB.** Built on **Tailwind CSS 4** and **DaisyUI 5**, solid-tom-ui harnesses SolidJS fine-grained reactivity to deliver buttery-smooth UIs with near-zero overhead — no virtual DOM, no unnecessary re-renders, just raw speed.
+
+Customizing the look and feel is a first-class experience: swap the entire color scheme by overriding a handful of CSS variables, or dial in individual components through the unified `color` prop and per-slot `class` overrides — no CSS-in-JS, no build plugins, just plain CSS and Tailwind utilities you already know.
+
+## Why solid-tom-ui?
+
+- **Featherlight** — the full library (45+ components, styles included) weighs only ~1.5 MB, keeping your app fast on any network
+- **Instant theming** — change primary colors, border radii, and shadows site-wide by editing a single CSS block; no rebuild required
+- **Pixel-perfect by default** — every component is designed to look great out of the box, while remaining fully customizable via `class` props or CSS variables
+- **SolidJS-native** — reactivity is handled at the signal level, so components update surgically without wasting a single render cycle
 
 ## Features
 
@@ -17,10 +26,10 @@ Built on **Tailwind CSS 4** and **DaisyUI 5**, leveraging SolidJS fine-grained r
 
 ```bash
 npm install solid-tom-ui
-
-pnpm i solid-tom-ui
-
-bun i solid-tom-ui
+or
+pnpm install solid-tom-ui
+or
+bun install solid-tom-ui
 ```
 
 ### Peer dependencies
