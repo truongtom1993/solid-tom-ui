@@ -47,7 +47,7 @@ export type BaseItem = {
 export type FileItem = BaseItem & {
     type: 'file';
 };
-type BaseFolderItem = BaseItem & {
+export type BaseFolderItem = BaseItem & {
     type: 'folder';
     defaultExpanded?: boolean;
 };
@@ -59,7 +59,7 @@ export type LazyFolder = BaseFolderItem & AsyncItem;
 export type TitleItem = BaseTitleItem & {
     items: MenuTitleItems[];
 };
-type MenuTitleItems = FileItem | TitleItem | SyncFolder;
+export type MenuTitleItems = FileItem | TitleItem | SyncFolder;
 export type SyncItem = {
     items: MenuItem[];
     lazyItems?: never;
@@ -70,5 +70,4 @@ export type AsyncItem = {
 };
 export type FolderItem = SyncFolder | LazyFolder;
 export type MenuItem = FileItem | FolderItem | TitleItem;
-export {};
 //# sourceMappingURL=menu.types.d.ts.map
