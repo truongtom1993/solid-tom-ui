@@ -1,0 +1,223 @@
+## COMPONENT IDENTITY
+
+- **Import**: `import { Badge } from 'solid-tom-ui';`
+- **Export**: `Badge` (named export), `BadgeVariantsProps` (type export)
+- **Framework**: SolidJS
+- **Purpose**: Small label/tag for status, category, count, or metadata display
+
+## TYPE SIGNATURE
+
+```typescript
+import { Badge } from 'solid-tom-ui';
+
+interface BadgeProps {
+  content?: SolidComponent; // Text string or JSXElement (default: "lorem")
+  size?: '3xs' | '2xs' | 'xs' | 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl';
+  color?: 'neutral' | 'primary' | 'secondary' | 'accent' | 'info' | 'success' | 'warning' | 'error';
+  variants?: 'outline' | 'soft' | 'dashed';
+  class?: string; // Append additional Tailwind classes
+  overrideClass?: string; // Completely replace all variant classes
+  customColor?: string; // Custom CSS color string
+}
+```
+
+## CLASS SLOTS
+
+`Badge` is a single-element component. Use `class` to append classes and `overrideClass` to fully replace all variant classes. No named sub-element slots.
+
+> **CSS encoding**: internal CSS classes use short encoded names (e.g. `bg01`, `bg02`) per project convention.
+
+## DEFAULTS
+
+| Prop       | Default     |
+| ---------- | ----------- |
+| `size`     | `"md"`      |
+| `color`    | `"primary"` |
+| `variants` | `"soft"`    |
+| `content`  | `"lorem"`   |
+
+## SIZE REFERENCE
+
+| Size  | Height | Font size         |
+| ----- | ------ | ----------------- |
+| `3xs` | h-3.5  | text-[10px]       |
+| `2xs` | h-4    | text-xs           |
+| `xs`  | h-4.5  | text-sm           |
+| `sm`  | h-5    | text-sm           |
+| `md`  | h-5.5  | text-sm (default) |
+| `lg`  | h-6    | text-base         |
+| `xl`  | h-6.5  | text-base         |
+| `2xl` | h-7    | text-base         |
+| `3xl` | h-7.5  | text-base         |
+
+## VARIANT SEMANTICS
+
+| Variant   | Visual appearance               | Use case                           |
+| --------- | ------------------------------- | ---------------------------------- |
+| `soft`    | Filled background (low opacity) | Default — status labels, tags      |
+| `outline` | Transparent bg, colored border  | Category tags, filters             |
+| `dashed`  | Dashed border, white bg         | Draft / temporary / pending states |
+
+## COLOR SEMANTICS
+
+| Color       | Semantic meaning             |
+| ----------- | ---------------------------- |
+| `primary`   | Brand / highlight (default)  |
+| `secondary` | Secondary brand              |
+| `accent`    | Special highlight            |
+| `neutral`   | Gray, no meaning, draft      |
+| `info`      | Informational                |
+| `success`   | Positive / active / complete |
+| `warning`   | Caution / pending            |
+| `error`     | Negative / failed / critical |
+
+## USAGE PATTERNS
+
+### Simple text badge
+
+```tsx
+<Badge content="Active" color="success" variants="soft" size="sm" />
+<Badge content="Pending" color="warning" variants="soft" size="sm" />
+<Badge content="Failed" color="error" variants="soft" size="sm" />
+```
+
+### Status indicators
+
+```tsx
+// Active/inactive status
+<Badge color="success" variants="soft" size="xs" content="Active" />
+<Badge color="error" variants="soft" size="xs" content="Inactive" />
+<Badge color="warning" variants="soft" size="xs" content="Pending" />
+<Badge color="info" variants="soft" size="xs" content="Processing" />
+<Badge color="neutral" variants="soft" size="xs" content="Draft" />
+```
+
+### Category / filter tags
+
+```tsx
+<Badge color="primary" variants="outline" size="xs" content="Technology" />
+<Badge color="secondary" variants="outline" size="xs" content="Design" />
+<Badge color="accent" variants="outline" size="xs" content="Marketing" />
+```
+
+### Notification count badges
+
+```tsx
+// Small number counts — use tiny sizes
+<Badge color="error" variants="soft" size="3xs" content="5" />
+<Badge color="primary" variants="soft" size="3xs" content="12" />
+<Badge color="success" variants="soft" size="3xs" content="99+" />
+```
+
+### Priority levels
+
+```tsx
+<Badge color="error" variants="dashed" size="xs" content="Critical" />
+<Badge color="warning" variants="dashed" size="xs" content="High" />
+<Badge color="info" variants="dashed" size="xs" content="Medium" />
+<Badge color="neutral" variants="dashed" size="xs" content="Low" />
+```
+
+### Badge with icon (JSX content)
+
+```tsx
+import { Icon } from 'lucide-solid';
+
+// Completed badge with checkmark
+<Badge
+  color="success"
+  variants="soft"
+  size="sm"
+  content={() => (
+    <div class="flex items-center gap-1">
+      <Icon name="check" size={12} />
+      <span class="-translate-y-px">Completed</span>
+    </div>
+  )}
+/>
+
+// Closable badge (close button inside content)
+<Badge
+  color="neutral"
+  variants="soft"
+  size="sm"
+  content={() => (
+    <div class="flex items-center gap-1">
+      <span class="-translate-y-px">Tag Label</span>
+      <Icon name="x" size={10} class="cursor-pointer hover:opacity-70" onClick={handleRemove} />
+    </div>
+  )}
+/>
+```
+
+### Custom Tailwind classes (append)
+
+```tsx
+// Append extra styles — does not remove defaults
+<Badge content="Amber" class="h-5 bg-amber-200 text-sm text-amber-900/80" />
+<Badge content="Gradient" class="h-5 bg-linear-to-r from-purple-400 to-pink-400 text-sm text-white" />
+<Badge content="Pill shape" class="h-5 rounded-full px-3" />
+```
+
+### Full class override
+
+```tsx
+// Completely replace component classes
+<Badge
+  content="Custom"
+  overrideClass="inline-flex items-center px-2 py-1 rounded text-xs font-bold bg-purple-600 text-white"
+/>
+```
+
+## DECISION RULES
+
+**Choosing `variants`:**
+
+- Status / label → `soft` (default, most readable)
+- Filter chip / selectable tag → `outline`
+- Unconfirmed / draft / temporary → `dashed`
+
+**Choosing `size`:**
+
+- Inline with body text → `xs` or `sm`
+- Standalone label → `md` (default)
+- Notification dot / count → `3xs` or `2xs`
+- Headline-level badge → `lg` or `xl`
+
+**Choosing `color`:**
+
+- Boolean positive state (active, online, success) → `success`
+- Boolean negative state (inactive, offline, error) → `error`
+- Transitional state (loading, pending) → `warning`
+- Informational only → `info`
+- Neutral tags with no semantic meaning → `neutral`
+- Primary brand label → `primary`
+
+**Rich content (icons, buttons inside badge):**
+
+- Pass a function `() => JSX` or a JSX element to `content`
+- Keep content minimal — badge is meant to be small
+
+**Text truncation:**
+
+- Long text auto-truncates with ellipsis
+- Wrap badge in a width-constrained container if truncation is needed
+
+## ANTI-PATTERNS
+
+```tsx
+// ❌ Missing content — shows "lorem" placeholder
+<Badge color="success" />
+
+// ❌ Using overrideClass for minor adjustments — use class instead
+<Badge content="X" overrideClass="rounded px-2 text-xs bg-blue-500 text-white flex items-center" />
+// ✅ Prefer class for additive changes
+<Badge content="X" color="info" variants="soft" class="rounded-full px-3" />
+
+// ❌ Nesting complex interactive UIs inside Badge content
+// Badge is display-only — avoid heavy interaction inside content
+
+// ✅ For notification bubbles over avatars/icons, compose Badge with the parent container
+```
+
+> **Unique IDs**: if this component needs to generate HTML `id` attributes, always use `createUniqueId()` from `solid-js` — never `Math.random()` or `Date.now()`.

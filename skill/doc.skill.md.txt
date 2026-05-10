@@ -1,0 +1,191 @@
+## COMPONENT IDENTITY
+- **Import**: `import { CodePreview } from '@/components/doc/CodePreview';`
+- **Export**: `CodePreview` (named export)
+- **Framework**: SolidJS
+- **Purpose**: Internal documentation UI — the `doc` folder builds the library's documentation pages; NOT general-purpose UI components; NOT exported from `solid-tom-ui`
+
+## PURPOSE
+Renders a tabbed panel with two views:
+1. **Preview tab**: renders the given SolidJS component visually.
+2. **Code tab**: shows syntax-highlighted TypeScript/TSX source code with a copy button.
+
+## TYPE SIGNATURE
+```typescript
+import { CodePreview } from 'solid-tom-ui';
+import { Component } from 'solid-js';
+
+<CodePreview
+  preview={Component<any>}      // REQUIRED: SolidJS component to render as preview
+  code={string}                 // REQUIRED: source code string to display (raw TSX/TS)
+  title?={string}               // optional title (currently not rendered in UI)
+  language?={string}            // highlight.js language ID; default: 'typescript'
+  classNames?={{
+    previewBlock?: string;      // extra class on the preview container div
+  }}
+/>
+```
+
+## USAGE PATTERN
+```tsx
+import { CodePreview } from '@/components/doc/CodePreview';
+import { MyExampleComponent } from './my-component.example';
+
+const exampleCode = `
+import { MyComponent } from '@/components/my-component';
+
+const Example = () => (
+  <MyComponent color="primary" size="md">
+    Hello
+  </MyComponent>
+);
+`.trim();
+
+<CodePreview
+  preview={MyExampleComponent}
+  code={exampleCode}
+/>
+```
+
+## With custom preview container class
+```tsx
+<CodePreview
+  preview={DarkBgExample}
+  code={darkCode}
+  classNames={{ previewBlock: 'bg-gray-900 min-h-48' }}
+/>
+```
+
+## CONSTRAINTS
+- `preview` must be a **component reference** (not rendered JSX). It is rendered via `<Dynamic component={props.preview} />`.
+- `code` is formatted with a simple indentation normalizer (not a full prettier formatter). Pass clean, consistently-indented code strings.
+- The copy button uses `navigator.clipboard.writeText` — only works in HTTPS or localhost contexts.
+- `title` prop exists in the type but is not rendered in the current implementation.
+- Syntax highlighting only works for languages registered with `hljs`. Currently only `typescript` is registered.
+
+### ANTI-PATTERNS
+```tsx
+// ❌ Passing rendered JSX as preview
+<CodePreview preview={<MyComponent />} code={...} />  // Wrong
+// ✅ Pass component reference
+<CodePreview preview={MyComponent} code={...} />
+
+// ❌ Passing a different language without registering it with hljs
+<CodePreview preview={CssExample} code={cssCode} language="css" />
+// Only "typescript" is registered; other languages fall back to plain text
+```
+
+---
+
+## DocsNav
+
+### IDENTITY
+- **Import**: `@/components/doc/DocsNav`
+- **Export**: `DocsNav` (named export)
+- **Framework**: SolidJS + `@solidjs/router`
+
+### PURPOSE
+Sidebar navigation component for the documentation site. Groups doc entries by category and renders active-state links using `@solidjs/router`'s `<A>` component.
+
+### CURRENT STATUS
+> **⚠️ DocsNav currently renders an empty fragment (`<></>`)**. The component body is disabled (unreachable code after the early `return <></>`). It is a work-in-progress and not functional.
+
+## TYPE SIGNATURE
+```typescript
+import { DocsNav } from '@/components/doc/DocsNav';
+
+interface DocsNavProps {
+  docs?: DocInfo[];   // list of doc entries; falls back to global DOCS_TSX if omitted
+}
+
+<DocsNav docs?={DocInfo[]} />
+```
+
+---
+
+## TableOfContents
+
+### IDENTITY
+- **Import**: `@/components/doc/TableOfContents`
+- **Export**: `TableOfContents` (named export), `Heading` (exported interface)
+- **Framework**: SolidJS
+
+### PURPOSE
+Sticky right-side table of contents. Renders a list of heading anchors. Clicking a heading scrolls the nearest `<main>` container to that heading smoothly.
+
+## TYPE SIGNATURE
+```typescript
+import { TableOfContents, Heading } from '@/components/doc/TableOfContents';
+
+interface Heading {
+  id: string;      // DOM element ID to scroll to
+  text: string;    // display text
+  level: number;   // heading level (2 = h2, 3 = h3, etc.)
+}
+
+<TableOfContents
+  headings={Heading[]}   // REQUIRED: array of heading descriptors
+/>
+```
+
+### BEHAVIOR
+- Renders nothing when `headings` is empty (wrapped in `<Show when={props.headings.length > 0}>`).
+- Scroll target is found via `document.getElementById(heading.id)`.
+- Scrolls the closest `<main>` ancestor (with 80px top offset). Falls back to `scrollIntoView` if no `<main>` found.
+- `level === 2` → `font-medium text-gray-700` (h2-level, bold)
+- `level >= 3` → `ml-4 text-gray-600` (h3+, indented)
+
+## USAGE PATTERN
+```tsx
+import { TableOfContents, Heading } from '@/components/doc/TableOfContents';
+
+const headings: Heading[] = [
+  { id: 'installation', text: 'Installation', level: 2 },
+  { id: 'basic-usage', text: 'Basic Usage', level: 2 },
+  { id: 'variants', text: 'Variants', level: 3 },
+  { id: 'api', text: 'API Reference', level: 2 },
+];
+
+// Typically placed in a sticky right sidebar
+<aside class="w-64 shrink-0">
+  <TableOfContents headings={headings} />
+</aside>
+```
+
+### GENERATING HEADINGS FROM MARKDOWN
+When parsing markdown for headings, produce objects matching the `Heading` interface:
+```typescript
+// Example: parse h2 and h3 headings from markdown text
+const parseHeadings = (markdown: string): Heading[] => {
+  const lines = markdown.split('\n');
+  return lines
+    .filter(line => line.startsWith('## ') || line.startsWith('### '))
+    .map(line => {
+      const level = line.startsWith('### ') ? 3 : 2;
+      const text = line.replace(/^#{2,3}\s/, '');
+      const id = text.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]/g, '');
+      return { id, text, level };
+    });
+};
+```
+
+## CONSTRAINTS
+- Each heading's `id` must match an actual DOM element's `id` attribute in the page.
+- The scroll offset is hardcoded at 80px (to account for sticky headers).
+- Only works when rendered inside or near a `<main>` element ancestor.
+
+---
+
+## DECISION RULES — Which doc component to use?
+
+| Need | Component |
+|------|-----------|
+| Show a live preview + source code for a component example | `CodePreview` |
+| Sidebar navigation list of doc pages | `DocsNav` (currently disabled/WIP) |
+| Right-side table of contents for a doc page | `TableOfContents` |
+---
+
+## Component Conventions
+
+> **CSS encoding**: internal CSS classes use short encoded names (e.g. `dc01`, `dc02`) per project convention.
+
+> **Unique IDs**: if this component needs to generate HTML `id` attributes, always use `createUniqueId()` from `solid-js` — never `Math.random()` or `Date.now()`.

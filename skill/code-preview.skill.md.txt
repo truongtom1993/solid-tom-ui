@@ -1,0 +1,240 @@
+## COMPONENT IDENTITY
+- **Import**: `import { CodePreview } from '@/components/doc/CodePreview';`
+- **Export**: `CodePreview` (named), `CODE_PREVIEW_THEMES`, `CodePreviewTheme` (type export)
+- **Framework**: SolidJS
+- **Purpose**: Internal documentation component — renders a tabbed panel with a live component preview and syntax-highlighted source code; used in Storybook stories and docs pages; NOT exported from `solid-tom-ui`
+- **Dependencies**: Shiki (syntax highlighting) · Prettier standalone (auto-format)
+
+---
+
+## TYPE SIGNATURE
+
+```ts
+interface CodePreviewProps {
+  code: string;                   // Source code string hiển thị trong tab Code
+  preview: Component<any>;        // SolidJS component render trong tab Preview
+  title?: string;                 // Tiêu đề (hiện chưa render, dành cho tương lai)
+  language?: string;              // Ngôn ngữ highlight; default: 'tsx'
+  theme?: CodePreviewTheme;       // Shiki theme; default: 'dracula'
+  classNames?: {
+    previewBlock?: string;        // Class bổ sung cho vùng preview
+  };
+}
+```
+
+---
+
+## BASIC USAGE
+
+```tsx
+const myCode = `<Button variant="solid" color="primary">Click me</Button>`;
+
+<CodePreview
+  code={myCode}
+  preview={() => <Button variant="solid" color="primary">Click me</Button>}
+/>
+```
+
+---
+
+## USAGE WITH THEME
+
+```tsx
+<CodePreview
+  code={myCode}
+  preview={() => <MyComponent />}
+  theme="tokyo-night"
+/>
+```
+
+---
+
+## USAGE WITH CUSTOM LANGUAGE
+
+```tsx
+<CodePreview
+  code={`const x: number = 42;`}
+  preview={() => <div>42</div>}
+  language="typescript"
+/>
+```
+
+Các giá trị `language` được hỗ trợ: `'tsx'` · `'typescript'` · `'jsx'` · `'javascript'`
+
+---
+
+## USAGE WITH PREVIEW CLASSNAMES
+
+```tsx
+<CodePreview
+  code={myCode}
+  preview={() => <MyComponent />}
+  classNames={{ previewBlock: 'bg-base-200 min-h-[300px]' }}
+/>
+```
+
+---
+
+## CODE FORMATTING
+
+Code truyền vào `code` prop **không cần format thủ công** — Prettier tự động:
+- Căn chỉnh indentation (2 spaces)
+- Thêm trailing comma
+- Wrap dòng dài (printWidth: 80)
+- Semi-colon ở cuối statement
+
+**Lưu ý**: Prettier dùng `babel` parser, nhận JSX fragment bare (không cần wrapper function):
+
+```tsx
+// ✅ Đúng — JSX fragment bare
+const code = `<Button color="primary">Click</Button>`;
+
+// ✅ Đúng — JSX multi-line
+const code = `
+<FloatButton
+  type="flower"
+  color="orange"
+  actions={[<Button />, <Button />]}
+/>
+`;
+
+// ✅ Đúng — TypeScript expression
+const code = `const x: Record<string, number> = { a: 1 };`;
+```
+
+---
+
+## AVAILABLE THEMES
+
+Export `CODE_PREVIEW_THEMES` chứa toàn bộ danh sách, dùng để build UI chọn theme:
+
+```tsx
+import { CODE_PREVIEW_THEMES } from '@/components/doc/CodePreview';
+
+// Render dropdown chọn theme
+<select>
+  {CODE_PREVIEW_THEMES.map(t => <option value={t}>{t}</option>)}
+</select>
+```
+
+### Danh sách themes
+
+| Theme | Phong cách |
+|---|---|
+| `dracula` *(default)* | Dark purple — Dracula official |
+| `dracula-soft` | Dracula nhạt màu hơn |
+| `github-dark` | GitHub dark |
+| `github-dark-default` | GitHub dark default |
+| `github-dark-dimmed` | GitHub dark dimmed |
+| `github-dark-high-contrast` | GitHub dark high contrast |
+| `github-light` | GitHub light |
+| `github-light-default` | GitHub light default |
+| `github-light-high-contrast` | GitHub light high contrast |
+| `tokyo-night` | Tokyo Night (blue/purple) |
+| `one-dark-pro` | Atom One Dark Pro |
+| `nord` | Nord (arctic blue tones) |
+| `monokai` | Monokai classic |
+| `night-owl` | Night Owl (Sarah Drasner) |
+| `catppuccin-mocha` | Catppuccin Mocha (warm dark) |
+| `catppuccin-macchiato` | Catppuccin Macchiato |
+| `catppuccin-frappe` | Catppuccin Frappé |
+| `catppuccin-latte` | Catppuccin Latte (light) |
+| `rose-pine` | Rosé Pine (dark) |
+| `rose-pine-dawn` | Rosé Pine Dawn (light) |
+| `rose-pine-moon` | Rosé Pine Moon |
+| `material-theme` | Material Theme |
+| `material-theme-darker` | Material Theme Darker |
+| `material-theme-ocean` | Material Theme Ocean |
+| `material-theme-palenight` | Material Theme Palenight |
+| `material-theme-lighter` | Material Theme Lighter |
+| `vitesse-dark` | Vitesse Dark (Anthony Fu) |
+| `vitesse-light` | Vitesse Light |
+| `vitesse-black` | Vitesse Black |
+| `solarized-dark` | Solarized Dark |
+| `solarized-light` | Solarized Light |
+| `everforest-dark` | Everforest Dark |
+| `everforest-light` | Everforest Light |
+| `synthwave-84` | SynthWave '84 (neon) |
+| `poimandres` | Poimandres (deep space) |
+| `ayu-dark` | Ayu Dark |
+| `aurora-x` | Aurora X |
+| `andromeeda` | Andromeeda |
+| `dark-plus` | Dark+ (VS Code default dark) |
+| `light-plus` | Light+ (VS Code default light) |
+| `min-dark` | Min Dark (minimal) |
+| `min-light` | Min Light (minimal) |
+| `plastic` | Plastic |
+| `red` | Red |
+| `slack-dark` | Slack Dark |
+| `slack-ochin` | Slack Ochin |
+| `snazzy-light` | Snazzy Light |
+| `vesper` | Vesper |
+
+---
+
+## PATTERN: DÙNG TRONG STORYBOOK STORY
+
+```tsx
+import { CodePreview } from '@/components/doc/CodePreview';
+import type { Meta, StoryObj } from 'storybook-solidjs-vite';
+
+const myCode = `<MyComponent
+  prop="value"
+  onAction={() => {}}
+/>`;
+
+export const Example: StoryObj = {
+  render: () => (
+    <CodePreview
+      code={myCode}
+      preview={() => (
+        <MyComponent
+          prop="value"
+          onAction={() => {}}
+        />
+      )}
+    />
+  ),
+};
+```
+
+---
+
+## PATTERN: DÙNG TRONG IFRAME (component cần isolated CSS)
+
+```tsx
+import { CodePreview } from '@/components/doc/CodePreview';
+import { Iframe } from '@/components/iframe';
+
+<CodePreview
+  code={myCode}
+  preview={() => (
+    <Iframe
+      element={() => <MyComponent />}
+    />
+  )}
+/>
+```
+
+Dùng `<Iframe>` khi component có CSS toàn cục (animation, fixed position, z-index cao) có thể xung đột với trang docs.
+
+---
+
+## INTERNALS (cho maintainer)
+
+| Layer | Implementation |
+|---|---|
+| **Formatter** | Prettier 3.x standalone, parser `babel` |
+| **Highlighter** | Shiki 4.x, `createHighlighter` singleton |
+| **Theme loading** | Lazy per theme, cache qua `Set<string>` |
+| **Async state** | SolidJS `createResource` + `Suspense` |
+| **Default theme** | `dracula` (load khi init) |
+| **Default language** | `tsx` |
+| **Supported langs** | `tsx`, `typescript`, `jsx`, `javascript` |
+---
+
+## Component Conventions
+
+> **CSS encoding**: internal CSS classes use short encoded names (e.g. `cp01`, `cp02`) per project convention.
+
+> **Unique IDs**: if this component needs to generate HTML `id` attributes, always use `createUniqueId()` from `solid-js` — never `Math.random()` or `Date.now()`.

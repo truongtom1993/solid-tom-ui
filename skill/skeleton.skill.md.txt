@@ -1,0 +1,192 @@
+## COMPONENT IDENTITY
+- **Import**: `import { Skeleton } from 'solid-tom-ui';`
+- **Export**: `Skeleton` (named export), `SkeletonProps` (type export)
+- **Framework**: SolidJS
+- **Purpose**: Loading placeholder that replaces real content with an animated shimmer block; when `enabled` is `false`, transparently renders `children`
+
+> Always **wrap** the real content inside `<Skeleton>` — do not render them side-by-side.
+
+## Props — Discriminated Union
+
+`SkeletonProps` is a **discriminated union** on the `type` field. The `type` prop is **required** and determines which other props are available.
+
+### `type="layout"` — Preset complex layouts
+
+```ts
+{
+  type: 'layout';
+  variant?: LayoutVariant;
+  enabled: boolean;
+}
+```
+
+### `type="shape"` — Preset simple shapes
+
+```ts
+{
+  type: 'shape';
+  variant?: ShapeVariant;
+  enabled: boolean;
+}
+```
+
+### `type="custom"` — Fully custom via class
+
+```ts
+{
+  type: 'custom';
+  enabled: boolean;
+  class: string;  // required — defines size, shape, and border radius
+}
+```
+
+> **Note:** `class` is only available on `type="custom"`. `variant` is only available on `type="layout"` and `type="shape"`.
+
+## `enabled` Prop
+
+`enabled` is the loading toggle:
+
+- `enabled={true}` → renders the skeleton placeholder
+- `enabled={false}` → renders `children` (real content)
+
+## Layout Variants
+
+Used with `type="layout"`. Each variant renders a multi-element composition:
+
+| Variant           | Description                                          |
+| ----------------- | ---------------------------------------------------- |
+| `cardImage`       | Image block on top + title + 3 text lines below      |
+| `cardHorizontal`  | Square thumbnail on the left + text lines on the right |
+| `profile`         | Circular avatar (centered) + name + description lines |
+| `article`         | Large title + subtitle + 5-line paragraph            |
+| `feedItem`        | Small circular avatar on the left + 2 text lines     |
+| `stat`            | Small label + large number + small sublabel          |
+
+## Shape Variants
+
+Used with `type="shape"`. Each variant renders a single skeleton block:
+
+| Variant         | Dimensions                        |
+| --------------- | --------------------------------- |
+| `rectangle`     | `h-32 w-full rounded-lg`          |
+| `square`        | `size-32 rounded-lg`              |
+| `circle`        | `size-16 rounded-full`            |
+| `textLine`      | `h-4 w-full rounded`              |
+| `textParagraph` | 4 lines of varying width          |
+
+## Usage Examples
+
+### Layout skeleton
+
+```tsx
+<Skeleton type="layout" variant="cardImage" enabled={isLoading()}>
+  {/* Real content rendered when enabled=false */}
+  <div class="flex flex-col gap-2">
+    <img src={post.image} class="h-40 w-full rounded-lg object-cover" />
+    <h2 class="font-semibold">{post.title}</h2>
+    <p class="text-sm text-base-content/70">{post.description}</p>
+  </div>
+</Skeleton>
+```
+
+### Shape skeleton
+
+```tsx
+<Skeleton type="shape" variant="circle" enabled={isLoading()}>
+  <img src={user.avatar} class="size-16 rounded-full" alt={user.name} />
+</Skeleton>
+```
+
+### Custom skeleton
+
+The `class` prop is applied directly to a `<div class="skeleton ...">`. Define size, shape, and rounding:
+
+```tsx
+<Skeleton type="custom" enabled={isLoading()} class="h-6 w-32 rounded-full">
+  <span class="text-sm font-medium">{label}</span>
+</Skeleton>
+
+<Skeleton type="custom" enabled={isLoading()} class="size-20 rounded-2xl">
+  <img src={thumbnail} class="size-20 rounded-2xl" />
+</Skeleton>
+```
+
+### Async data loading pattern
+
+```tsx
+const [data, setData] = createSignal(null);
+const [loading, setLoading] = createSignal(true);
+
+onMount(async () => {
+  const result = await fetchUser();
+  setData(result);
+  setLoading(false);
+});
+
+// In JSX:
+<Skeleton type="layout" variant="profile" enabled={loading()}>
+  <Show when={data()}>
+    {user => (
+      <div class="flex flex-col items-center gap-2">
+        <img src={user().avatar} class="size-20 rounded-full" />
+        <p class="font-semibold">{user().name}</p>
+      </div>
+    )}
+  </Show>
+</Skeleton>
+```
+
+### Feed list with multiple skeleton items
+
+```tsx
+<For each={loading() ? Array(5).fill(null) : posts()}>
+  {(post, i) => (
+    <Skeleton type="layout" variant="feedItem" enabled={loading()}>
+      <FeedItem post={post} />
+    </Skeleton>
+  )}
+</For>
+```
+
+## Animation & Styling
+
+The `.skeleton` class (from `skeleton.daisy.css`) applies:
+- Background: `var(--color-base-300)`
+- Animated sweep: a `105deg` gradient from `base-100` that slides across via `background-position-x` at `1.8s ease-in-out infinite`
+- Respects `prefers-reduced-motion`: slows animation to `15s` transition duration when reduced motion is preferred
+- Default border radius: `var(--radius-box)`
+
+The animation is purely CSS — no JavaScript timers involved.
+
+## Render Structure
+
+```
+<Show when={enabled} fallback={children}>
+  {type === 'custom'
+    ? <div class={cn('skeleton', class)} />
+    : <SkeletonDisplay type variant />
+  }
+</Show>
+```
+
+When `enabled=true`, `children` are never mounted. When `enabled=false`, the skeleton is never mounted. There is no overlap.
+
+## Class Slots
+
+`Skeleton` uses `class` only for `type="custom"` (defines size + shape of the placeholder div). For `type="layout"` and `type="shape"`, there is no `class` prop — the shape is fully determined by `variant`.
+
+No `Partial<Record<...>>` slot object — this component renders preset layouts without sub-element targeting.
+
+> **CSS encoding**: internal CSS classes use short encoded names (e.g. `sk01`, `sk02`) per project convention.
+
+## Common Mistakes
+
+| Mistake | Fix |
+| --- | --- |
+| Using `type="custom"` without `class` | `class` is required for `type="custom"` — TypeScript will error |
+| Placing real content alongside Skeleton | Wrap real content **inside** Skeleton as `children` |
+| Omitting `type` prop | `type` is required — one of `'layout'`, `'shape'`, `'custom'` |
+| Using `variant` with `type="custom"` | `variant` is not available on `type="custom"` — use `class` instead |
+| Expecting skeleton animation in reduced-motion mode | Animation slows to ~15s; design should still look acceptable statically |
+
+> **Unique IDs**: if this component needs to generate HTML `id` attributes, always use `createUniqueId()` from `solid-js` — never `Math.random()` or `Date.now()`.

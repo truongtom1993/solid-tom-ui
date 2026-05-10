@@ -1,0 +1,404 @@
+## COMPONENT IDENTITY
+- **Import**: `import { Slider } from 'solid-tom-ui';`
+- **Exports**: `Slider` (named export), `SliderProps`, `SliderTooltipProps` (type exports)
+- **Framework**: SolidJS
+- **Purpose**: Range slider input with optional tooltip, marks, step control, and controlled/uncontrolled modes
+
+---
+
+## PROP REFERENCE (`SliderProps`)
+
+| Prop           | Type                                                                                                | Default               | Description                                                                                                                                |
+| -------------- | --------------------------------------------------------------------------------------------------- | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `value`        | `number \| [number, number]`                                                                        | —                     | Controlled value. Single number for normal mode; `[min, max]` tuple for range mode. Must update via `onChange` to reflect changes.         |
+| `defaultValue` | `number \| [number, number]`                                                                        | `min` or `[min, max]` | Initial value for uncontrolled mode.                                                                                                       |
+| `min`          | `number`                                                                                            | `0`                   | Minimum value of the slider.                                                                                                               |
+| `max`          | `number`                                                                                            | `100`                 | Maximum value of the slider.                                                                                                               |
+| `step`         | `number \| null`                                                                                    | `1`                   | Step increment. Set to `null` to disable stepping — value snaps to nearest `marks` key instead.                                            |
+| `range`        | `boolean`                                                                                           | `false`               | Enable range mode. Renders two thumbs. Value becomes `[number, number]`.                                                                   |
+| `color`        | `BaseColorProps`                                                                                    | `'primary'`           | Color theme applied via CSS custom property `--color`.                                                                                     |
+| `disabled`     | `boolean`                                                                                           | `false`               | Disable all interactions. Adds `sui-slider-disabled` class; `opacity: 0.5`, cursor `not-allowed`.                                          |
+| `reverse`      | `boolean`                                                                                           | `false`               | Reverse the direction (right-to-left for horizontal, top-to-bottom for vertical).                                                          |
+| `orientation`  | `'horizontal' \| 'vertical'`                                                                        | `'horizontal'`        | Layout axis. Vertical slider has `min-height: 200px` and `width: 32px`.                                                                    |
+| `dots`         | `boolean`                                                                                           | `false`               | Show step dot markers on the rail at every `step` interval. Requires `step` to be a positive number.                                       |
+| `included`     | `boolean`                                                                                           | `true`                | If `true`, renders a colored track between `min` and current value (or between the two thumbs in range mode). If `false`, hides the track. |
+| `marks`        | `Record<number, string \| { label: string; style?: JSX.CSSProperties }>`                            | —                     | Tick marks at specific values. Each key is a value (number), each value is a label string or `{ label, style }` object.                    |
+| `tooltip`      | `SliderTooltipProps`                                                                                | `{ hidden: false }`   | Tooltip configuration for thumb(s).                                                                                                        |
+| `onChange`     | `(value: number \| [number\| [number, number]) => void`                                             | —                     | Fires on every value change during drag, click, and keyboard interaction. In range mode, always receives `[number, number]`.               |
+| `class`        | `Partial<Record<'root' \| 'dot' \| 'handle' \| 'mark' \| 'markText' \| 'rail' \| 'track', string>>` | —                     | Merge custom classes onto specific structural elements.                                                                                    |
+
+---
+
+## `SliderTooltipProps`
+
+Extends `Partial<Omit<TooltipProps, 'children' | 'content'>>` with:
+
+| Field       | Type                                            | Default                    | Description                                                                                     |
+| ----------- | ----------------------------------------------- | -------------------------- | ----------------------------------------------------------------------------------------------- |
+| `hidden`    | `boolean`                                       | `false`                    | Hide the tooltip entirely for all thumbs.                                                       |
+| `forceOpen` | `boolean`                                       | —                          | `true` → always show tooltip; `false` → always hide; `undefined` → show on hover/drag/focus.    |
+| `formatter` | `((value: number) => string \| number) \| null` | —                          | Custom formatter for the tooltip label. `null` → renders empty string (effectively hides text). |
+| `position`  | `TooltipVariantsProps['position']`              | `'top'` (H), `'right'` (V) | Tooltip placement. Overridden automatically based on orientation if not set.                    |
+| `color`     | `BaseColorProps`                                | —                          | Tooltip color theme.                                                                            |
+| `class`     | `{ root?: string; content?: string }`           | —                          | Custom classes on tooltip root and content.                                                     |
+
+> `forceOpen` on `SliderTooltipProps` maps to the Tooltip's `forceOpen` prop, **not** to a visibility signal. `hidden` takes precedence over `forceOpen`.
+
+---
+
+## BEHAVIORAL RULES (inferred from implementation)
+
+### Controlled vs Uncontrolled
+
+- **Uncontrolled**: omit `value`. Internal `internalValue` signal manages state. `defaultValue` sets initial state once.
+- **Controlled**: supply `value`. Component syncs `internalValue` reactively via `createEffect` on `p.value`. **You must update `value` in `onChange`** to reflect user interactions.
+- `currentValue` memo always reads `p.value` when defined, falling back to `internalValue`.
+
+### Range Mode
+
+- Enabled via `range={true}`.
+- `value` and `defaultValue` must be `[number, number]` tuples.
+- Two thumbs rendered (index `0` = left/bottom, index `1` = right/top).
+- Thumbs cannot cross: dragging thumb 0 past thumb 1 clamps it to thumb 1's value, and vice versa.
+- Rail click snaps to the **closest** thumb.
+- In non-range mode, only thumb index `1` is rendered; thumb index `0` is hidden via `<Show when={isRange()}>`.
+
+### Value Computation
+
+```
+percent → value:
+  actualPercent = reverse ? 100 - percent : percent
+  rawValue = min + (actualPercent / 100) * (max - min)
+  if step !== null → snap: Math.round(rawValue / step) * step
+  if step === null → snap to nearest marks key (or min/max)
+  clamp to [min, max]
+
+value → percent:
+  percent = ((value - min) / (max - min)) * 100
+  if reverse → 100 - percent
+```
+
+### Step = null (mark-only snapping)
+
+- When `step={null}`, value only snaps to defined `marks` keys plus `min` and `max`.
+- `dots` prop is ignored when `step` is `null` or `<= 0`.
+
+### Track rendering (`included`)
+
+```
+included=true + non-range:  track starts at 0% (or 100% if reversed) and ends at value%
+included=true + range:      track spans from v0% to v1%
+included=false:             <Show when={p.included !== false}> → no track rendered
+```
+
+### Tooltip visibility logic
+
+```
+tooltip.hidden === true       → always hidden (Tooltip hidden prop)
+tooltip.forceOpen === true    → always shown
+tooltip.forceOpen === false   → always hidden
+tooltip.forceOpen undefined   → shown when: activeThumb === thumbIndex OR hoveredThumb === thumbIndex
+```
+
+Hover triggers: `onMouseEnter` / `onFocus` → `setHoveredThumb(index)`.
+Drag triggers: `onMouseDown` / `onTouchStart` → `setActiveThumb(index)`.
+
+### Drag mechanics
+
+- `onMouseDown` / `onTouchStart` on a thumb attaches global `mousemove` / `touchmove` listeners to `document`.
+- Listeners removed on `mouseup` / `touchend`.
+- `activeThumb` signal is set during drag, cleared on release.
+- Prevents default to stop text selection during drag.
+
+### Vertical orientation
+
+- Rail and track swap `width`/`height` roles.
+- Position uses `bottom: %` instead of `left: %`.
+- Tooltip defaults to `position="right"`.
+- Handle wrapper uses `transform: translate(-50%, 50%)` (vs `translate(-50%, -50%)` horizontal).
+- Container: `width: 32px`, `min-height: 200px`, `flex-direction: column`.
+
+### Marks rendering
+
+- Each mark renders two elements: a tick `div.sui-slider-mark` and a label `span.sui-slider-mark-text`.
+- Active styling (colored tick + label) applied when the mark value falls within `isInRange(value)`.
+- Custom `style` from mark object is merged with position style on the label span.
+
+### Dots rendering
+
+- Dots generated from `min` to `max` stepping by `step`.
+- Each dot is a `div.sui-slider-dot` positioned absolutely on the rail.
+- Active dot (colored border) when the dot value is within the current range (`isInRange`).
+- Dots are not rendered if `dots=false`, `step=null`, or `step <= 0`.
+
+---
+
+## USAGE PATTERNS
+
+### 1. Minimal uncontrolled
+
+```tsx
+<Slider />
+// Renders horizontal slider, 0–100, default value = 0
+```
+
+### 2. Controlled with state
+
+```tsx
+const [val, setVal] = createSignal(40);
+
+<Slider value={val()} onChange={v => setVal(v as number)} />;
+```
+
+### 3. Range slider (two thumbs)
+
+```tsx
+const [range, setRange] = createSignal<[number, number]>([20, 70]);
+
+<Slider range value={range()} onChange={v => setRange(v as [number, number])} />;
+```
+
+### 4. Custom min / max / step
+
+```tsx
+<Slider min={0} max={1000} step={50} defaultValue={200} />
+```
+
+### 5. With marks
+
+```tsx
+<Slider
+  min={0}
+  max={100}
+  marks={{
+    0: '0°C',
+    25: '25°C',
+    50: { label: '50°C', style: { color: 'orange' } },
+    100: { label: '100°C', style: { color: 'red', fontWeight: 'bold' } },
+  }}
+/>
+```
+
+### 6. Marks-only snapping (`step={null}`)
+
+```tsx
+<Slider step={null} marks={{ 0: 'Low', 50: 'Mid', 100: 'High' }} defaultValue={50} />
+// Value only snaps to 0, 50, or 100
+```
+
+### 7. Show step dots
+
+```tsx
+<Slider min={0} max={10} step={1} dots />
+```
+
+### 8. Vertical orientation
+
+```tsx
+<div style={{ height: '300px' }}>
+  <Slider orientation="vertical" defaultValue={60} />
+</div>
+// Container must have explicit height for vertical slider to be visible
+```
+
+### 9. Reversed direction
+
+```tsx
+// Horizontal: value increases right-to-left
+<Slider reverse defaultValue={30} />
+
+// Vertical: value increases top-to-bottom
+<Slider orientation="vertical" reverse defaultValue={30} />
+```
+
+### 10. Always-visible tooltip
+
+```tsx
+<Slider defaultValue={50} tooltip={{ forceOpen: true }} />
+```
+
+### 11. Custom tooltip formatter
+
+```tsx
+<Slider
+  min={0}
+  max={1}
+  step={0.01}
+  defaultValue={0.5}
+  tooltip={{ formatter: v => `${(v * 100).toFixed(0)}%` }}
+/>
+```
+
+### 12. Hide tooltip
+
+```tsx
+// Method 1: hide via hidden
+<Slider tooltip={{ hidden: true }} />
+
+// Method 2: always-hidden via forceOpen=false
+<Slider tooltip={{ forceOpen: false }} />
+
+// Method 3: formatter returns empty (text hidden but tooltip still renders)
+<Slider tooltip={{ formatter: null }} />
+```
+
+### 13. No track (included=false)
+
+```tsx
+<Slider included={false} defaultValue={40} />
+// Only rail and thumb shown; no colored fill
+```
+
+### 14. Custom colors
+
+```tsx
+<Slider color="success" defaultValue={70} />
+<Slider color="warning" defaultValue={50} />
+<Slider color="error" defaultValue={30} />
+```
+
+### 15. Custom classes on elements
+
+```tsx
+<Slider
+  defaultValue={50}
+  class={{
+    root: 'my-4',
+    rail: 'rounded-full',
+    track: 'bg-linear-to-r from-green-400 to-blue-500',
+    handle: 'border-4',
+    mark: 'h-3',
+    markText: 'text-xs font-bold',
+    dot: 'border-2',
+  }}
+/>
+```
+
+### 16. Disabled
+
+```tsx
+<Slider defaultValue={40} disabled />
+// All interactions blocked; opacity 0.5; cursor not-allowed
+```
+
+### 17. Full-featured example
+
+```tsx
+const [val, setVal] = createSignal<[number, number]>([20, 80]);
+
+<Slider
+  range
+  value={val()}
+  onChange={v => setVal(v as [number, number])}
+  min={0}
+  max={100}
+  step={5}
+  dots
+  marks={{ 0: 'Start', 50: 'Mid', 100: 'End' }}
+  tooltip={{ formatter: v => `${v}%`, forceOpen: true }}
+  color="primary"
+  class={{ root: 'my-6' }}
+/>;
+```
+
+---
+
+## CSS CLASSES (public API for customization)
+
+| Class                         | Applied to                                         |
+| ----------------------------- | -------------------------------------------------- |
+| `sui-slider`                  | Root `<div>`                                       |
+| `sui-slider-vertical`         | Root `<div>` when `orientation='vertical'`         |
+| `sui-slider-disabled`         | Root `<div>` when `disabled=true`                  |
+| `sui-slider-rail`             | Rail `<div>` (full track background)               |
+| `sui-slider-track`            | Colored fill `<div>` (inside rail)                 |
+| `sui-slider-handle-wrapper`   | Absolutely-positioned wrapper per thumb            |
+| `sui-slider-handle`           | Circular thumb `<div>`                             |
+| `sui-slider-handle-active`    | Thumb when being dragged (`activeThumb === index`) |
+| `sui-slider-dot`              | Step dot `<div>`                                   |
+| `sui-slider-dot-active`       | Dot within the active range                        |
+| `sui-slider-mark`             | Mark tick `<div>`                                  |
+| `sui-slider-mark-active`      | Tick within the active range                       |
+| `sui-slider-mark-text`        | Mark label `<span>`                                |
+| `sui-slider-mark-text-active` | Label within the active range                      |
+
+Use `class={{ root, rail, track, handle, dot, mark, markText }}` prop to append custom classes.
+
+---
+
+## CSS CUSTOM PROPERTIES (theming)
+
+All set on `.sui-slider` and overridable via CSS:
+
+| Variable                     | Default                                        | Role                       |
+| ---------------------------- | ---------------------------------------------- | -------------------------- |
+| `--slider-rail-bg`           | `oklch(0.9 0 0)`                               | Rail background color      |
+| `--slider-track-bg`          | `var(--color)`                                 | Track fill color           |
+| `--slider-track-bg-hover`    | `color-mix(in oklch, var(--color) 80%, black)` | Track + handle hover color |
+| `--slider-handle-bg`         | `#fff`                                         | Thumb background           |
+| `--slider-handle-border`     | `var(--color)`                                 | Thumb border color         |
+| `--slider-handle-size`       | `14px`                                         | Thumb diameter             |
+| `--slider-rail-height`       | `4px`                                          | Rail/track thickness       |
+| `--slider-dot-size`          | `8px`                                          | Dot diameter               |
+| `--slider-mark-color`        | `oklch(0.6 0 0)`                               | Inactive mark text color   |
+| `--slider-mark-active-color` | `var(--color)`                                 | Active mark text color     |
+
+`--color` is injected by `getColor(p.color)` utility from the design system color palette.
+
+---
+
+## ACCESSIBILITY
+
+- Each thumb renders as `role="slider"` with:
+  - `aria-valuemin={min}`
+  - `aria-valuemax={max}`
+  - `aria-valuenow={currentThumbValue}`
+  - `aria-disabled={disabled}`
+- `tabIndex={0}` on enabled thumbs; `tabIndex={-1}` when disabled.
+- Focus triggers `setHoveredThumb` → shows tooltip.
+- No built-in keyboard arrow-key value change. Consumers must implement keyboard handlers if needed.
+
+---
+
+## CONSTRAINTS & EDGE CASES
+
+- `value` prop does NOT auto-initialize `internalValue` at mount if different from `defaultValue` — `getInitialValue()` runs once at creation time. Always set `defaultValue` for uncontrolled initial state; use `value` for controlled.
+- In range mode, the `onChange` callback always fires with `[number, number]` — cast via `v as [number, number]`.
+- In non-range mode, `onChange` always fires with `number` — cast via `v as number`.
+- `valuesArray` always returns `[number, number]` internally. For non-range: `[min, currentValue]`. This means the track always starts at `min` in the non-reversed, non-range case.
+- `step={null}` requires `marks` to be defined; without marks, value snaps to `min` or `max` only.
+- Vertical slider container **must have explicit height** — the slider uses `height: 100%` and the default `min-height: 200px` applies only to `.sui-slider-vertical` itself.
+- `tooltip.formatter = null` renders an empty string (`''`) as tooltip content — the tooltip element still renders, just with no visible text.
+- `getTooltipProps()` only passes `position`, `color`, and `class` from `SliderTooltipProps` to `<Tooltip>`. Other `TooltipProps` fields (`minScreen`, `maxScreen`) are stripped.
+- `dots` renders one dot per step from `min` to `max`. For large ranges with small steps, this can generate many DOM nodes — use with care (e.g., avoid `min=0 max=1000 step=1 dots`).
+- Range mode clamps but does not swap thumbs: dragging thumb 0 past thumb 1 stops it at thumb 1's current value (and vice versa). Values never invert.
+
+---
+
+## DO / DON'T
+
+**DO**
+
+- Always pair `value` with `onChange` for controlled usage — update state inside `onChange`.
+- Use `range` + `[number, number]` tuple together — they are semantically coupled.
+- Set `step={null}` together with `marks` when you want mark-only snapping.
+- Wrap vertical slider in a container with explicit height: `<div style={{ height: '300px' }}>`.
+- Use `tooltip={{ forceOpen: true }}` for always-visible value labels (e.g., in settings panels).
+- Use `class={{ root: 'my-4' }}` for spacing without touching internal structure.
+- Import from the barrel: `import { Slider } from 'solid-tom-ui'`.
+
+**DON'T**
+
+- Don't use `value` as a number in range mode or as `[number, number]` in non-range mode — types mismatch silently.
+- Don't set `dots={true}` with `step={null}` — dots will not render.
+- Don't set `dots={true}` with extremely small step values over large ranges — generates excessive DOM nodes.
+- Don't rely on keyboard arrow keys to change value — they are not implemented; add `onKeyDown` manually if needed.
+- Don't apply `height` on the slider root directly for vertical layout — set height on the **parent** container instead.
+- Don't pass `content` or `customContent` inside `tooltip` prop — those fields are omitted from `SliderTooltipProps`; use `formatter` to customize the displayed value.
+---
+
+## Component Conventions
+
+> **CSS encoding**: internal CSS classes use short encoded names (e.g. `sd01`, `sd02`) per project convention.
+
+> **Unique IDs**: if this component needs to generate HTML `id` attributes, always use `createUniqueId()` from `solid-js` — never `Math.random()` or `Date.now()`.

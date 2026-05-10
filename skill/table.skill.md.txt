@@ -1,0 +1,1407 @@
+## COMPONENT IDENTITY
+- **Import**: `import { Table, createColumnHelper } from 'solid-tom-ui';`
+- **Exports**: `Table` (named export), `createColumnHelper` (re-exported from TanStack), all table type exports (type exports)
+- **Framework**: SolidJS
+- **Underlying library**: `@tanstack/solid-table` v8 + `@tanstack/solid-virtual` (optional virtual scrolling)
+- **Purpose**: Feature-rich data table — virtual scrolling, expandable rows, column pinning, zebra striping, sort/filter, pagination, and row selection
+
+---
+
+## STATIC FACTORY METHODS
+
+`Table` has two static factory methods that generate `ColumnDef` objects:
+
+### `Table.Selection<TData>(options?)`
+
+Generates a **row selection column** (checkbox or radio). Place it anywhere in the `columns` array — only the first one is rendered (duplicates silently ignored).
+
+**`TableSelectionOptions<TData>`**:
+
+| Option | Type | Default | Description |
+|---|---|---|---|
+| `type` | `'checkbox' \| 'radio'` | `'checkbox'` | Multi-select or single-select |
+| `title` | `JSXElement` | — | Custom header content (overrides auto select-all checkbox) |
+| `width` | `string \| number` | `48` | Column width (px) |
+| `hideSelectAll` | `boolean` | `false` | Hide select-all checkbox in header (checkbox type only) |
+| `renderCell` | `(checked, record, index) => JSXElement` | — | Custom cell renderer; clicking the result toggles the row |
+
+**Behavior**:
+- `type='checkbox'` → renders `<input type="checkbox">` per cell; header renders select-all checkbox (unless `hideSelectAll` or `title` set)
+- `type='radio'` → renders `<input type="radio">` per cell; forces `enableMultiRowSelection=false` internally; header is empty
+- Presence of `Table.Selection()` in columns **auto-enables** `enableRowSelection` (no need to pass the prop separately)
+- Column id: `__selection__` (internal, do not rely on it for external logic)
+
+### `Table.Expanded<TData>(options)`
+
+Generates a **row expand toggle column**. Place it anywhere in the `columns` array. Required option: `expandedRowRender`.
+
+**`TableExpandedOptions<TData>`**:
+
+| Option | Type | Default | Description |
+|---|---|---|---|
+| `expandedRowRender` | `(record, index, indent, expanded) => JSX.Element \| null` | **required** | Render the expanded row content |
+| `rowExpandable` | `(record, index) => boolean` | — | When omitted, all rows are expandable |
+| `expandIcon` | `(expanded: boolean) => JSX.Element` | — | Custom icon; receives current expanded state. When omitted, uses a rotating `chevron-right` |
+| `width` | `number` | `48` | Column width (px) |
+
+**Behavior**:
+- Column id: `__expanded__` (internal)
+- Clicking the expand cell (or the icon) toggles the row
+- Expanded content renders in a separate `<tr>` spanning all columns, below the data row
+- `rowExpandable` returning `false` hides the icon and prevents toggling for that row
+
+---
+
+## PROP REFERENCE
+
+### Core data props
+
+| Prop | Type | Default | Description |
+|---|---|---|---|
+| `columns` | `ColumnDef<TData, any>[]` | **required** | Column definitions. Use `createColumnHelper` for type safety. |
+| `data` | `TData[]` | **required** | Table rows data. |
+| `options` | `Partial<Omit<TableOptions<TData>, 'data' \| 'columns' \| 'getCoreRowModel'>>` | — | Pass-through for any TanStack table option not exposed as a prop (e.g. custom row models, meta). |
+| `onTableReady` | `(table: TableInstance<TData>) => void` | — | Receives the TanStack `table` instance after creation. Use to access full TanStack API. |
+| `getRowId` | `(row, index, parent?) => string` | — | Custom row ID. Required when using selection/expand with non-index IDs (e.g. `row => String(row.id)`). |
+
+### Style props
+
+| Prop | Type | Default | Description |
+|---|---|---|---|
+| `size` | `'xs' \| 'sm' \| 'md' \| 'lg' \| 'xl'` | `'md'` | Cell padding + font size variant |
+| `zebra` | `boolean \| { rows?: boolean; cols?: boolean }` | `{ rows: true }` | Zebra striping. `true` → `{ rows: true, cols: false }` (rows only). `false` or omit → disabled. |
+| `border` | `boolean \| { outer?: boolean; horizontal?: boolean; vertical?: boolean }` | — | Border control. `true` → all borders. `false` → no borders. Object for granular control. |
+| `rounded` | `string` | `'rounded-sm'` | Tailwind rounded class applied to root. Also sets `overflow-hidden`. Pass `''` to disable. |
+| `resizable` | `boolean` | `true` | Enable drag-to-resize columns via overlay handles (data columns only, not selection/expand columns). |
+| `showHeader` | `boolean` | `true` | Show or hide the table header (`<thead>`). Set to `false` to render the table without any column header row. |
+| `color` | `BaseColorProps` | `'info'` | Theme color token used for hover/highlight/sort icon colors via CSS custom properties. |
+| `scroll` | `{ x?: string \| number \| true; y?: string \| number }` | — | Scroll config. See scroll section below. |
+| `virtual` | `boolean \| TableVirtualOptions` | — | Enable virtual scrolling for large datasets. Requires `scroll.y`. See virtual section below. |
+
+### Slot / render props
+
+| Prop | Type | Description |
+|---|---|---|
+| `headerPanel` | `() => JSXElement` | Renders above the table (toolbar, title, filters, etc.). Has its own panel div with optional border. |
+| `footerPanel` | `() => JSXElement` | Renders below the table (pagination, summary, etc.). Has its own panel div. |
+| `emptyContent` | `JSXElement` | Content shown when `data` is empty. Default: `"No data"`. |
+| `class` | `TableClassNames` | Custom class names per semantic part. See `TableClassNames` below. |
+| `onRowClick` | `(row: Row<TData>, e: MouseEvent) => void` | Fired on body row click. Does NOT fire when clicking selection or expand cells. |
+| `onCell` | `(cell: Cell<TData, unknown>, rowIndex: number) => TableCellSpanResult` | Table-level callback to control `colSpan`/`rowSpan` for body cells. Per-column `meta.onCell` takes priority. Only applies in non-virtual mode. |
+
+### Row selection props
+
+| Prop | Type | Description |
+|---|---|---|
+| `enableRowSelection` | `boolean \| ((row) => boolean)` | Enable selection. Auto-set to `true` when `Table.Selection()` column is present. |
+| `rowSelection` | `RowSelectionState` | Controlled selection state. Shape: `{ [rowId: string]: boolean }` |
+| `onRowSelectionChange` | `OnChangeFn<RowSelectionState>` | Called when selection changes (TanStack updater function). |
+
+### Sorting props
+
+| Prop | Type | Default | Description |
+|---|---|---|---|
+| `enableSorting` | `boolean` | `false` | Enable column sorting. Must be `true` for any sort to work. |
+| `sorting` | `SortingState` | — | Controlled sort state. Shape: `[{ id: string; desc: boolean }]` |
+| `onSortingChange` | `OnChangeFn<SortingState>` | — | Called when sort changes. |
+
+**Multi-sort behavior**: Every header click accumulates sort columns (equivalent to always holding Shift). Clicking a sorted column cycles through: unsorted → asc → desc → unsorted. Multiple columns can be sorted simultaneously. The priority badge (1, 2, 3...) is shown on each sorted column when more than one column is sorted.
+
+### Filtering props
+
+| Prop | Type | Default | Description |
+|---|---|---|---|
+| `enableColumnFilters` | `boolean` | `false` | Enable column-level filtering. |
+| `columnFilters` | `ColumnFiltersState` | — | Controlled column filter state. |
+| `onColumnFiltersChange` | `OnChangeFn<ColumnFiltersState>` | — | Called when column filters change. |
+| `globalFilter` | `string` | — | Global filter string. |
+| `onGlobalFilterChange` | `OnChangeFn<string>` | — | Called when global filter changes. |
+
+### Visibility props
+
+| Prop | Type | Description |
+|---|---|---|
+| `columnVisibility` | `VisibilityState` | Controlled column visibility. Shape: `{ [colId: string]: boolean }` |
+| `onColumnVisibilityChange` | `OnChangeFn<VisibilityState>` | Called when visibility changes. |
+
+### Pagination props
+
+| Prop | Type | Default | Description |
+|---|---|---|---|
+| `pagination` | `PaginationState` | — | Initial/controlled pagination state. Shape: `{ pageIndex: number; pageSize: number }`. Used to seed or override the table's internal page state. |
+| `paginationProps` | `PaginationComponentProps` | — | When provided, enables client-side pagination and renders a `<Pagination>` component below the table. See details below. |
+
+**`paginationProps`** is `Omit<PaginationProps, 'current' | 'pageSize' | 'defaultCurrent' | 'defaultPageSize'> & { total: number; position?: 'start' | 'end' }`:
+
+| Option | Type | Description |
+|---|---|---|
+| `total` | `number` | **required** — Total number of data items (used to compute page count). |
+| `position` | `'start' \| 'end'` | Position of the Pagination component relative to the table. `'start'` = above table, `'end'` = below table. Default: `'end'`. |
+| `onChange` | `(page, size) => void` | Called after the table's internal page/size state has already been updated. Use for server-side pagination to fetch the new page. |
+| `showSizeChanger` | `boolean` | Show page size selector. |
+| `showQuickJumper` | `boolean` | Show "go to page" input. |
+| `size` | `PaginationSize` | Size variant for the Pagination component. |
+| `disabled` | `boolean` | Disable pagination controls. |
+| `...` | `PaginationProps` | Any other `PaginationProps` except `current`, `pageSize`, `defaultCurrent`, `defaultPageSize` (wired automatically). |
+
+**Notes**:
+- `current` and `pageSize` in the `<Pagination>` component are wired automatically from table state — do not pass them
+- For **client-side pagination**: pass all `data` rows; the table slices them automatically
+- For **server-side pagination**: pass only the current page's rows as `data`, and use `paginationProps.onChange` to fetch the new page
+- The `<Pagination>` component renders outside the table border (below `sui-table-root`)
+
+### Expanded rows props (state management)
+
+| Prop | Type | Description |
+|---|---|---|
+| `defaultExpandAllRows` | `boolean` | Expand all rows on first mount (uncontrolled; applied once). |
+| `defaultExpandedRowKeys` | `string[]` | Initial expanded row keys (uncontrolled). |
+| `expandedRowKeys` | `string[]` | Controlled list of expanded row keys. |
+| `onExpandedRowsChange` | `(expandedKeys: string[]) => void` | Called when the set of expanded keys changes. |
+| `onExpand` | `(expanded: boolean, record: TData) => void` | Called when a single row's expand icon is clicked. |
+
+### Infinite scroll props (virtual mode only)
+
+| Prop | Type | Description |
+|---|---|---|
+| `getVirtualData` | `() => Promise<TData[]>` | Called when the user scrolls near the end of the virtual list (auto mode) or clicks "Load more" (manual mode). Must return a Promise resolving with the next page of data. The resolved rows are automatically appended to the internal data. Only fires when `virtual` is set. |
+| `loadingMore` | `'none' \| 'auto' \| 'manual'` | Controls behavior and loading indicator at the end of the virtual list. `'none'`: no indicator, no action (default). `'auto'`: shows a spinner; `getVirtualData` is called automatically when scrolling near the end. `'manual'`: shows a "Load more" button; `getVirtualData` is only called when the user clicks the button. Only applies in virtual mode. |
+
+---
+
+## `TableClassNames` — per-part class customization
+
+```ts
+interface TableClassNames {
+  root?: string;        // root <div> wrapping everything
+  headerPanel?: string; // headerPanel slot wrapper
+  table?: string;       // <table> element
+  thead?: string;       // <thead>
+  tbody?: string;       // <tbody>
+  tfoot?: string;       // footerPanel wrapper (reuses tfoot key)
+  tr?: string;          // every <tr>
+  th?: string;          // every <th>
+  td?: string;          // every <td>
+  headerRow?: string;   // <tr> in thead only
+  bodyRow?: string;     // <tr> in tbody only
+  footerRow?: string;   // (reserved, not used for tfoot tr)
+  empty?: string;       // empty state <td>
+}
+```
+
+---
+
+## SCROLL CONFIGURATION
+
+`scroll.x` — horizontal scrolling:
+
+| Value | Behavior |
+|---|---|
+| `number` | Wrapper `max-width` = `${n}px`; table scrolls inside |
+| `string` (e.g. `'600px'`) | Wrapper `max-width` = value |
+| `true` | Wrapper inherits parent width; table `min-width` = sum of all column sizes |
+| `'max-content'` | Table `width` = `max-content`; wrapper scrolls |
+| omitted | No horizontal scroll constraint |
+
+`scroll.y` — vertical scrolling:
+
+| Value | Behavior |
+|---|---|
+| `number` | Wrapper `max-height` = `${n}px`; `<thead>` becomes sticky (fixed header) |
+| `string` | Wrapper `max-height` = value |
+| omitted | No vertical scroll |
+
+**Note**: When `scroll.y` is set OR any column has `meta.fixed`, `thead tr` becomes `position: sticky; top: 0`.
+
+---
+
+## VIRTUAL SCROLLING
+
+Virtual scrolling renders only the rows visible in the viewport instead of all rows, keeping DOM size and rendering cost constant regardless of dataset size. Powered by `@tanstack/solid-virtual`.
+
+### Requirements
+
+- `scroll.y` **must** be set to define the fixed-height viewport
+- `virtual` prop must be set to `true` or a `TableVirtualOptions` object
+
+### `TableVirtualOptions`
+
+| Option | Type | Default | Description |
+|---|---|---|---|
+| `itemSize` | `number` | `40` | Estimated row height in pixels. Match to your `size` variant. |
+| `overscan` | `number` | `5` | Extra rows rendered beyond the visible area (above + below). |
+
+**Approximate row heights by size variant**:
+
+| Size | Estimated height |
+|---|---|
+| `xs` | `26px` |
+| `sm` | `33px` |
+| `md` | `40px` (default) |
+| `lg` | `48px` |
+| `xl` | `58px` |
+
+### How it works
+
+- The scroll wrapper (`sui-table-wrapper`) becomes the virtualizer's scroll container
+- Only visible rows (+ `overscan` buffer) are rendered in the DOM
+- Top and bottom spacer `<tr>` elements fill the virtual space so the scrollbar reflects total height
+- `measureElement` is called on each rendered row `<tr>` so the virtualizer can refine height estimates dynamically
+
+### Virtual sort loading indicator
+
+When `enableSorting` is set and the user clicks a sortable column header in virtual mode, sorting is executed asynchronously:
+
+1. A full-height loading overlay (spinner + "Sorting" text) replaces the tbody rows immediately
+2. A microtask yields to let the loading state render
+3. The actual sort executes
+4. The loading overlay is shown for at least 500ms total, then removed
+5. The scroll position is reset to the top so the virtualizer renders the newly sorted rows
+
+This prevents jank on large datasets where synchronous sorting would block the UI thread. Clicking a column header while sorting is in progress is a no-op.
+
+### Infinite scroll
+
+Use `getVirtualData` + `loadingMore` together to implement lazy-loading / infinite scroll on top of virtual scrolling.
+
+**`loadingMore` values**:
+- `'none'` (default) — no indicator shown; `getVirtualData` is never called automatically
+- `'auto'` — renders a spinner row below the last virtual row when fetching; `getVirtualData` is triggered automatically when scrolling near the end or when content doesn't fill the viewport
+- `'manual'` — renders a "Load more" button row; `getVirtualData` is only called when the user clicks the button (NOT on scroll)
+
+**How `getVirtualData` works:**
+- `getVirtualData` returns a `Promise<TData[]>` — the component calls it and automatically appends the resolved rows to the internal data
+- The component tracks a loading state internally (`isFetchingMore`) to prevent concurrent calls
+- The `data` prop serves as the **initial data**; subsequent pages are appended internally
+- When the `data` prop reference changes, the internal data resets to the new prop value
+
+**Auto-fill behavior**: When content is too short to fill the viewport (no scrollbar appears), the component automatically calls `getVirtualData` in a promise chain until enough rows are loaded to create a scrollbar. This only runs in `'auto'` mode (not `'manual'`).
+
+**How scroll detection works internally:**
+- A scroll listener is attached to the `wrapperEl` (scroll container) on mount, only when `virtual` is set
+- In `'auto'` mode: fires `getVirtualData` when `scrollTop + clientHeight ≥ scrollHeight − threshold`, where `threshold = itemSize × overscan` (default: `40 × 5 = 200px`)
+- In `'manual'` mode: no scroll listener fires `getVirtualData`; only the button click does
+- In `'none'` mode: no action on scroll
+
+**Implementation pattern (`'auto'` mode):**
+```tsx
+const initialData = fetchFirstPage();  // stable reference — do not recreate on each render
+const [loadedCount, setLoadedCount] = createSignal(initialData.length);
+const hasMore = () => loadedCount() < TOTAL;
+
+const getVirtualData = () =>
+  fetchNextPage(loadedCount()).then(newRows => {
+    setLoadedCount(prev => prev + newRows.length);
+    return newRows;  // component appends automatically
+  });
+
+<Table
+  data={initialData}
+  getVirtualData={hasMore() ? getVirtualData : undefined}
+  loadingMore={hasMore() ? 'auto' : 'none'}
+  // ...
+/>
+```
+
+**Implementation pattern (`'manual'` mode):**
+```tsx
+<Table
+  data={initialData}
+  getVirtualData={hasMore() ? getVirtualData : undefined}
+  loadingMore={hasMore() ? 'manual' : 'none'}
+  // ...
+/>
+```
+
+**Rules:**
+- Keep the `data` prop as a **stable reference** (e.g. a constant or a signal that only changes on explicit reset). The component resets internal data whenever `data` changes reference.
+- `getRowId` is required to give each row a stable unique ID across pages
+- Set `loadingMore='none'` (or omit `getVirtualData`) when all data is exhausted to hide the indicator
+- The component prevents concurrent calls internally — no extra guard needed in the caller
+
+### Limitations
+
+- **Expanded rows are not supported** with virtual scrolling (variable heights break virtualizer accuracy)
+- **`scroll.y` is required** — without a fixed viewport height, no scrolling occurs and virtual mode has no effect
+- **`resizable={false}` is recommended** — column resizing and virtual mode can be used together but may cause minor visual glitches
+
+### Example
+
+```tsx
+// Basic — 10,000 rows with defaults
+<Table
+  columns={columns}
+  data={largeData}
+  scroll={{ y: 400 }}
+  virtual
+  border
+  size="md"
+  resizable={false}
+  getRowId={row => String(row.id)}
+/>
+
+// Custom options (lg size rows)
+<Table
+  columns={columns}
+  data={largeData}
+  scroll={{ y: 400 }}
+  virtual={{ itemSize: 48, overscan: 10 }}
+  size="lg"
+  resizable={false}
+/>
+```
+
+---
+
+## COLUMN META EXTENSIONS
+
+`ColumnDef.meta` supports several custom fields beyond TanStack's defaults:
+
+### `meta.fixed` — sticky columns
+
+```ts
+meta: { fixed: 'start' }   // sticky left
+meta: { fixed: 'end' }     // sticky right
+meta: { fixed: true }      // alias for 'start'
+```
+
+See [FIXED (STICKY) COLUMNS](#fixed-sticky-columns) below.
+
+### `meta.align` — cell alignment
+
+Horizontal alignment applied to **both** the header and body cells. Default: `'start'`.
+
+```ts
+meta: { align: 'start' | 'center' | 'end' }
+```
+
+```ts
+col.accessor('score', {
+  header: 'Score',
+  meta: { align: 'end' },    // right-align header + cells
+})
+```
+
+### `meta.tooltip` — cell tooltip
+
+Wraps every body cell in a `Tooltip` component. Table automatically injects `usePortal=true` and `containerId` (the `<tbody>` element ID), so `position` defaults to `'top'` if not specified.
+
+Type: `TableCellTooltipOptions` — same as `TooltipProps` but omits `children`, `usePortal`, `containerId`. The `content` field can be a **static string** or a **function** receiving the cell value.
+
+```ts
+meta: {
+  tooltip?: TableCellTooltipOptions
+}
+```
+
+```ts
+col.accessor('email', {
+  header: 'Email',
+  meta: {
+    tooltip: {
+      content: (value) => `Send email to: ${value}`,
+      position: 'bottom',
+    },
+  },
+})
+
+// Static content:
+col.accessor('notes', {
+  header: 'Notes',
+  meta: { tooltip: { content: 'Click to edit' } },
+})
+```
+
+### `meta.onCell` — per-column cell spanning
+
+Controls `colSpan` and `rowSpan` for body cells in this column. **Takes priority** over the table-level `onCell` prop.
+
+Return `{ colSpan: 0 }` or `{ rowSpan: 0 }` to hide a cell that is covered by a spanning neighbour.
+
+```ts
+meta: {
+  onCell?: (cell: Cell<TData, unknown>, rowIndex: number) => TableCellSpanResult
+}
+```
+
+```ts
+col.accessor('product', {
+  header: 'Product',
+  meta: {
+    onCell: (cell, rowIndex) => {
+      if (cell.getValue() === 'Widget B') return { colSpan: 3 };
+      return {};
+    },
+  },
+})
+```
+
+### `meta.onHeaderCell` — per-column header spanning
+
+Controls `colSpan` and `rowSpan` for the header cell (`<th>`) of this column. Overrides TanStack's auto-computed values.
+
+```ts
+meta: {
+  onHeaderCell?: (header: Header<TData, unknown>) => TableCellSpanResult
+}
+```
+
+```ts
+col.accessor('name', {
+  header: 'Full Name',
+  meta: {
+    onHeaderCell: (header) => ({ colSpan: 2 }),
+  },
+})
+```
+
+---
+
+## FIXED (STICKY) COLUMNS
+
+Set `meta.fixed` on any `ColumnDef`:
+
+```ts
+meta: { fixed: 'start' }   // sticky left
+meta: { fixed: 'end' }     // sticky right
+meta: { fixed: true }      // alias for 'start'
+```
+
+**Rules**:
+- Offsets are computed automatically by measuring DOM widths via `ResizeObserver`
+- The rightmost `'start'` column gets a drop-shadow on its right edge
+- The leftmost `'end'` column gets a drop-shadow on its left edge
+- Fixed columns require `scroll.x` to be set, otherwise they overlap content
+- `resizable` should be `false` when using fixed columns (set `resizable={false}`)
+
+---
+
+## COLUMN RESIZING
+
+- Enabled by default (`resizable={true}`)
+- Overlay `<div>` handles are positioned at each column's right border
+- Drag starts `mousemove` listener on `document`; drag end cleans up
+- Minimum column width: `40px`
+- Only data columns are resizable (`__selection__` and `__expanded__` are excluded)
+- When any column has been resized, `table-fixed` CSS layout is activated and `<colgroup>` drives widths
+- The last data column always takes remaining space (no explicit width applied)
+
+---
+
+## EVENT DELEGATION
+
+The component uses a **single delegated `onClick`** on `<table>` instead of per-cell handlers:
+
+1. Click on `th[data-column-id]` → triggers sorting toggle for that column
+2. Click on `td.sui-table-selection-cell` → toggles row selection
+3. Click on `td.sui-table-expand-cell` → toggles row expansion
+4. Click on `tr[data-row-id]` (body) → fires `onRowClick` prop
+5. Priority: selection cell > expand cell > body row (each returns early)
+
+---
+
+## BEHAVIORAL RULES
+
+### Controlled vs Uncontrolled for sorting/selection/pagination
+- All TanStack features follow the same pattern: pass `state.*` + `on*Change` for controlled, or omit both for uncontrolled (TanStack manages internally)
+- The component passes controlled state via reactive getters to TanStack's `createSolidTable` (not snapshots), so signal changes propagate correctly
+
+### Multi-sort always enabled
+- Every column header click is treated as a multi-sort event (`isMultiSortEvent: () => true` is hardcoded)
+- Clicking a column adds it to the sort stack; clicking again cycles it (asc → desc → unsorted)
+- There is no way to sort by a single column exclusively — use `options={{ isMultiSortEvent: () => false }}` to override if needed
+
+### Expandable rows — controlled vs uncontrolled
+- **Uncontrolled**: omit `expandedRowKeys`. Use `defaultExpandedRowKeys` for initial state. `defaultExpandAllRows` expands all rows once on mount.
+- **Controlled**: pass `expandedRowKeys` + `onExpandedRowsChange`. You must update the signal yourself.
+- Row IDs used for expansion are TanStack row IDs (auto-indexed `"0"`, `"1"`, ... unless `getRowId` is provided)
+
+### Selection column auto-wiring
+- If `Table.Selection()` is present in `columns`, `enableRowSelection` is automatically set to `true`
+- For `type='radio'`, `enableMultiRowSelection` is automatically set to `false`
+- Only the **first** `Table.Selection()` in the array is rendered; additional ones are silently dropped
+
+### Column `size` and `table-fixed` layout
+- If any `ColumnDef` has an explicit `size` field, `table-fixed` layout + `<colgroup>` is activated
+- Without explicit sizes, columns share width equally (browser default)
+- Sized body cells render content inside `<div class="sui-table-sized-cell">` (truncates overflow with ellipsis)
+
+### Pagination with `paginationProps`
+- Providing `paginationProps` automatically enables `getPaginationRowModel` (client-side pagination)
+- The `<Pagination>` component renders outside `sui-table-root`, inside `sui-table-outer`
+- `current` and `pageSize` are wired from internal table state; do not pass them in `paginationProps`
+- `paginationProps.onChange(page, size)` is called **after** the table's internal state has already been updated
+
+---
+
+## USAGE PATTERNS
+
+### 1. Minimal table
+
+```tsx
+import { Table, createColumnHelper } from 'solid-tom-ui';
+
+type Person = { name: string; age: number };
+const col = createColumnHelper<Person>();
+
+const columns = [
+  col.accessor('name', { header: 'Name' }),
+  col.accessor('age',  { header: 'Age' }),
+];
+
+const data: Person[] = [{ name: 'Alice', age: 30 }];
+
+<Table columns={columns} data={data} />
+```
+
+### 2. Sortable table (controlled)
+
+```tsx
+const [sorting, setSorting] = createSignal<SortingState>([]);
+
+<Table
+  columns={columns}
+  data={data}
+  enableSorting
+  sorting={sorting()}
+  onSortingChange={setSorting}
+/>
+```
+
+Per column, disable sorting:
+```ts
+col.accessor('id', { header: '#', enableSorting: false })
+```
+
+Note: Every sort click is multi-sort by default. To disable multi-sort, use:
+```tsx
+<Table options={{ isMultiSortEvent: () => false }} ... />
+```
+
+### 3. Row selection — checkbox (controlled)
+
+```tsx
+const [rowSelection, setRowSelection] = createSignal<RowSelectionState>({});
+
+const columns = [
+  Table.Selection({ type: 'checkbox' }),
+  col.accessor('name', { header: 'Name' }),
+];
+
+<Table
+  columns={columns}
+  data={data}
+  rowSelection={rowSelection()}
+  onRowSelectionChange={setRowSelection}
+  getRowId={row => String(row.id)}  // use stable IDs
+/>
+
+// Read selected IDs:
+const selectedIds = () => Object.keys(rowSelection()).filter(k => rowSelection()[k]);
+```
+
+### 4. Row selection — radio (single-select)
+
+```tsx
+const columns = [
+  Table.Selection({ type: 'radio' }),
+  col.accessor('name', { header: 'Name' }),
+];
+
+<Table
+  columns={columns}
+  data={data}
+  rowSelection={rowSelection()}
+  onRowSelectionChange={setRowSelection}
+  getRowId={row => String(row.id)}
+/>
+```
+
+### 5. Row selection — hide select-all
+
+```tsx
+Table.Selection({ type: 'checkbox', hideSelectAll: true })
+```
+
+### 6. Row selection — custom cell renderer
+
+```tsx
+Table.Selection<Person>({
+  type: 'checkbox',
+  title: 'Select',
+  width: 80,
+  renderCell: (checked, record) => (
+    <button class={checked ? 'btn-primary' : 'btn-ghost'}>
+      {checked ? 'Selected' : 'Select'}
+    </button>
+  ),
+})
+```
+
+### 7. Expandable rows — basic (uncontrolled)
+
+```tsx
+const columns = [
+  col.accessor('name', { header: 'Name' }),
+  Table.Expanded({
+    expandedRowRender: (record) => (
+      <div>Details: {record.email}</div>
+    ),
+  }),
+  col.accessor('job', { header: 'Job' }),
+];
+
+<Table columns={columns} data={data} border />
+```
+
+### 8. Expandable rows — custom icon
+
+```tsx
+Table.Expanded({
+  expandIcon: (expanded) => (
+    <DynamicIcon name={expanded ? 'square-minus' : 'square-plus'} size={16} />
+  ),
+  expandedRowRender: (record) => <div>{record.email}</div>,
+})
+```
+
+### 9. Expandable rows — conditional (rowExpandable)
+
+```tsx
+Table.Expanded<Person>({
+  rowExpandable: (record) => record.hasDetails === true,
+  expandedRowRender: (record) => <div>{record.details}</div>,
+})
+```
+
+### 10. Expandable rows — controlled
+
+```tsx
+const [expandedKeys, setExpandedKeys] = createSignal<string[]>([]);
+
+<Table
+  columns={columns}
+  data={data}
+  expandedRowKeys={expandedKeys()}
+  onExpandedRowsChange={setExpandedKeys}
+  onExpand={(expanded, record) => console.log(expanded, record)}
+/>
+
+// Expand all programmatically (row IDs are 0-indexed strings by default):
+setExpandedKeys(data.map((_, i) => String(i)));
+```
+
+### 11. Expandable rows — expand all on mount
+
+```tsx
+<Table columns={columns} data={data} defaultExpandAllRows />
+```
+
+### 12. Expandable rows — nested table
+
+```tsx
+Table.Expanded<Person>({
+  rowExpandable: record => orders[record.id]?.length > 0,
+  expandedRowRender: record => (
+    <div class="ml-10">
+      <Table columns={orderColumns} data={orders[record.id]} size="xs" border resizable={false} />
+    </div>
+  ),
+})
+```
+
+### 13. Scroll — vertical (fixed header)
+
+```tsx
+<Table columns={columns} data={data} scroll={{ y: 400 }} border />
+```
+
+### 14. Scroll — horizontal
+
+```tsx
+<Table columns={columns} data={data} scroll={{ x: 800 }} />
+// or: auto min-width from column sizes
+<Table columns={columns} data={data} scroll={{ x: true }} />
+```
+
+### 15. Fixed (sticky) columns
+
+```tsx
+const columns = [
+  col.accessor('id', {
+    header: '#',
+    size: 60,
+    meta: { fixed: 'start' },   // sticky left
+  }),
+  col.accessor('name', { header: 'Name', size: 150 }),
+  col.accessor('action', {
+    header: 'Action',
+    size: 100,
+    meta: { fixed: 'end' },     // sticky right
+  }),
+];
+
+<Table
+  columns={columns}
+  data={data}
+  scroll={{ x: true, y: 400 }}
+  resizable={false}   // recommended: disable resizing with fixed columns
+/>
+```
+
+### 16. Borders
+
+```tsx
+<Table columns={columns} data={data} border />                   // all borders
+<Table columns={columns} data={data} border={false} />           // no borders
+<Table columns={columns} data={data} border={{ outer: true, horizontal: true }} />
+<Table columns={columns} data={data} border={{ vertical: true }} />
+```
+
+### 17. Zebra striping
+
+```tsx
+<Table columns={columns} data={data} zebra />                      // rows only (default)
+<Table columns={columns} data={data} zebra={{ rows: true }} />     // rows only
+<Table columns={columns} data={data} zebra={{ cols: true }} />     // cols only
+<Table columns={columns} data={data} zebra={{ rows: true, cols: true }} />  // both
+<Table columns={columns} data={data} zebra={false} />              // disabled
+```
+
+Note: `zebra={true}` is equivalent to `zebra={{ rows: true }}` — it only enables row striping, NOT column striping.
+
+### 18. Size variants
+
+```tsx
+<Table columns={columns} data={data} size="xs" />
+<Table columns={columns} data={data} size="sm" />
+<Table columns={columns} data={data} size="md" />  // default
+<Table columns={columns} data={data} size="lg" />
+<Table columns={columns} data={data} size="xl" />
+```
+
+### 19. Header and footer panels
+
+```tsx
+<Table
+  columns={columns}
+  data={data}
+  border
+  rounded="rounded-sm"
+  headerPanel={() => (
+    <div class="flex items-center justify-between">
+      <span class="font-semibold">Employee List</span>
+      <span class="text-sm opacity-60">{data.length} records</span>
+    </div>
+  )}
+  footerPanel={() => (
+    <div class="flex justify-end gap-2">
+      <button onClick={() => setPage(p => p - 1)}>Prev</button>
+      <button onClick={() => setPage(p => p + 1)}>Next</button>
+    </div>
+  )}
+/>
+```
+
+### 20. Empty state
+
+```tsx
+<Table
+  columns={columns}
+  data={[]}
+  emptyContent={<span class="text-gray-400 italic">No records found</span>}
+/>
+```
+
+### 21. Row click handler
+
+```tsx
+<Table
+  columns={columns}
+  data={data}
+  onRowClick={(row, e) => {
+    console.log('clicked row:', row.original);
+  }}
+/>
+```
+
+### 22. Access TanStack table instance
+
+```tsx
+let tableInstance: TableInstance<Person>;
+
+<Table
+  columns={columns}
+  data={data}
+  onTableReady={(table) => { tableInstance = table; }}
+/>
+
+// Later: tableInstance.getSelectedRowModel(), etc.
+```
+
+### 23. Client-side pagination (with Pagination component)
+
+```tsx
+// paginationProps wires the <Pagination> component automatically.
+// Pass all data rows; the table slices them by page internally.
+<Table
+  columns={columns}
+  data={allData}           // all rows — table slices by page
+  border
+  paginationProps={{
+    total: allData.length, // required
+    showSizeChanger: true,
+  }}
+/>
+```
+
+### 24. Server-side pagination
+
+```tsx
+const [pagination, setPagination] = createSignal<PaginationState>({ pageIndex: 0, pageSize: 10 });
+const [serverData, setServerData] = createSignal<Person[]>([]);
+
+// Fetch initial page
+onMount(() => fetchPage(0, 10).then(setServerData));
+
+<Table
+  columns={columns}
+  data={serverData()}       // only current page's rows
+  pagination={pagination()} // seed/control internal page state
+  paginationProps={{
+    total: totalCount(),     // required for correct page count
+    onChange: (page, size) => {
+      // Called AFTER table state is updated
+      setPagination({ pageIndex: page - 1, pageSize: size });
+      fetchPage(page - 1, size).then(setServerData);
+    },
+  }}
+/>
+```
+
+### 25. Column visibility
+
+```tsx
+const [visibility, setVisibility] = createSignal<VisibilityState>({ email: false });
+
+<Table
+  columns={columns}
+  data={data}
+  columnVisibility={visibility()}
+  onColumnVisibilityChange={setVisibility}
+/>
+```
+
+### 26. Pass-through TanStack options
+
+```tsx
+<Table
+  columns={columns}
+  data={data}
+  options={{
+    autoResetPageIndex: false,
+    meta: { myCustomMeta: 'value' },
+    isMultiSortEvent: () => false,  // disable multi-sort
+  }}
+/>
+```
+
+### 27. Virtual scrolling — basic (10,000+ rows)
+
+```tsx
+<Table
+  columns={columns}
+  data={largeData}   // 10,000+ rows
+  scroll={{ y: 400 }}
+  virtual            // true → defaults: itemSize=40, overscan=5
+  border
+  size="md"
+  resizable={false}
+  getRowId={row => String(row.id)}
+/>
+```
+
+### 28. Virtual scrolling — custom options
+
+```tsx
+// Tune itemSize to match actual row height (size="lg" ≈ 48px)
+<Table
+  columns={columns}
+  data={largeData}
+  scroll={{ y: 420 }}
+  virtual={{ itemSize: 48, overscan: 10 }}
+  size="lg"
+  resizable={false}
+/>
+```
+
+### 29. Virtual scrolling — with row selection
+
+```tsx
+const [rowSelection, setRowSelection] = createSignal<RowSelectionState>({});
+
+const columns = [
+  Table.Selection({ type: 'checkbox' }),
+  col.accessor('name', { header: 'Name' }),
+  // ...
+];
+
+<Table
+  columns={columns}
+  data={largeData}
+  scroll={{ y: 400 }}
+  virtual
+  rowSelection={rowSelection()}
+  onRowSelectionChange={setRowSelection}
+  getRowId={row => String(row.id)}
+/>
+```
+
+### 30. Virtual scrolling — with sorting
+
+```tsx
+<Table
+  columns={columns}
+  data={largeData}
+  scroll={{ y: 400 }}
+  virtual
+  enableSorting
+  resizable={false}
+  getRowId={row => String(row.id)}
+/>
+// Sorting in virtual mode shows a loading indicator while the sort executes,
+// then scrolls to the top automatically.
+```
+
+### 31. Virtual scrolling — infinite scroll auto mode
+
+```tsx
+const TOTAL = 200;
+
+const initialRows = fetchPage(0);              // stable reference — do NOT recreate on each render
+const [loadedCount, setLoadedCount] = createSignal(initialRows.length);
+const hasMore = () => loadedCount() < TOTAL;
+
+const getVirtualData = () =>
+  fetchPage(loadedCount()).then(newRows => {
+    setLoadedCount(prev => prev + newRows.length);
+    return newRows;                            // component appends automatically
+  });
+
+<Table
+  columns={columns}
+  data={initialRows}                           // stable initial data
+  scroll={{ y: 420 }}
+  virtual
+  border
+  size="sm"
+  resizable={false}
+  getRowId={row => String(row.id)}             // required for stable row identity
+  getVirtualData={hasMore() ? getVirtualData : undefined}
+  loadingMore={hasMore() ? 'auto' : 'none'}    // 'none' when all data is loaded
+/>
+// 'auto' mode: getVirtualData is called automatically on scroll near end + auto-fill when viewport not full.
+// Component appends resolved rows internally — no manual setRows needed.
+// Concurrent calls are prevented internally — no extra guard needed.
+```
+
+### 32. Virtual scrolling — infinite scroll manual mode (Load more button)
+
+```tsx
+<Table
+  columns={columns}
+  data={initialRows}
+  scroll={{ y: 420 }}
+  virtual
+  getRowId={row => String(row.id)}
+  getVirtualData={hasMore() ? getVirtualData : undefined}
+  loadingMore={hasMore() ? 'manual' : 'none'}  // 'none' hides the button when all loaded
+/>
+// 'manual' mode: getVirtualData fires ONLY on "Load more" button click, NOT on scroll.
+```
+
+### 33. Hide table header
+
+```tsx
+<Table columns={columns} data={data} showHeader={false} />
+```
+
+### 34. Sorting — uncontrolled (simplest)
+
+```tsx
+// No state management needed — table handles sort state internally.
+// Click any column header to toggle: asc → desc → none.
+<Table columns={columns} data={data} enableSorting border />
+```
+
+### 35. Sorting — pre-sorted on mount
+
+```tsx
+// Initialize the sorting signal with a value to sort the table on first render.
+const [sorting, setSorting] = createSignal<SortingState>([{ id: 'salary', desc: true }]);
+
+<Table
+  columns={columns}
+  data={data}
+  enableSorting
+  sorting={sorting()}
+  onSortingChange={setSorting}
+/>
+```
+
+### 36. Sorting — disable sort on specific columns
+
+```tsx
+const columns = [
+  col.accessor('id',   { header: '#',   size: 60, enableSorting: false }),  // not sortable
+  col.accessor('name', { header: 'Name', size: 160 }),                       // sortable
+  col.accessor('job',  { header: 'Job',  enableSorting: false }),             // not sortable
+];
+
+<Table columns={columns} data={data} enableSorting />
+```
+
+### 37. Sorting — programmatic multi-sort presets
+
+```tsx
+const [sorting, setSorting] = createSignal<SortingState>([]);
+
+// Set multiple sort columns at once via external controls:
+const applyPreset = () =>
+  setSorting([
+    { id: 'department', desc: false },
+    { id: 'salary',     desc: true },
+  ]);
+
+<Table
+  columns={columns}
+  data={data}
+  enableSorting
+  sorting={sorting()}
+  onSortingChange={setSorting}
+/>
+// Priority badges (1, 2…) appear on each sorted column automatically.
+```
+
+### 38. Sorting — custom sortingFn
+
+```tsx
+const columns: ColumnDef<Person, any>[] = [
+  col.accessor('joinedAt', {
+    header: 'Joined',
+    // Compare as Date objects (ISO strings sort lexicographically but this shows the pattern)
+    sortingFn: (rowA, rowB, columnId) => {
+      const a = new Date(rowA.getValue<string>(columnId)).getTime();
+      const b = new Date(rowB.getValue<string>(columnId)).getTime();
+      return a < b ? -1 : a > b ? 1 : 0;
+    },
+  }),
+  col.accessor('score', {
+    header: 'Score',
+    sortingFn: 'alphanumeric',  // TanStack built-in: handles numbers + mixed strings
+  }),
+];
+
+<Table columns={columns} data={data} enableSorting sorting={sorting()} onSortingChange={setSorting} />
+```
+
+### 39. Sorting — server-side
+
+```tsx
+const [sorting, setSorting] = createSignal<SortingState>([]);
+const [serverData, setServerData] = createSignal<Person[]>(initialData);
+
+const handleSortingChange = (updater: SortingState | ((prev: SortingState) => SortingState)) => {
+  const next = typeof updater === 'function' ? updater(sorting()) : updater;
+  setSorting(next);
+  fetchSortedData(next).then(setServerData);  // call your API with the new sort params
+};
+
+<Table
+  columns={columns}
+  data={serverData()}
+  enableSorting
+  sorting={sorting()}
+  onSortingChange={handleSortingChange}
+  options={{ manualSorting: true }}  // disables client-side row sorting
+/>
+```
+
+### 40. Column alignment
+
+```tsx
+const columns = [
+  col.accessor('id', {
+    header: '#',
+    size: 60,
+    meta: { align: 'end' },     // right-align header + cells
+  }),
+  col.accessor('name', {
+    header: 'Name',
+    size: 150,
+    meta: { align: 'start' },   // default
+  }),
+  col.accessor('score', {
+    header: 'Score',
+    meta: { align: 'center' },  // center-align
+  }),
+];
+```
+
+### 41. Cell tooltip
+
+```tsx
+const columns = [
+  col.accessor('email', {
+    header: 'Email',
+    meta: {
+      tooltip: {
+        content: (value) => `Send to: ${value as string}`,
+        position: 'top',
+      },
+    },
+  }),
+  col.accessor('notes', {
+    header: 'Notes',
+    meta: {
+      tooltip: { content: 'Click cell to edit' },
+    },
+  }),
+];
+
+<Table columns={columns} data={data} />
+// Hovering any cell in the tooltip-enabled column shows the tooltip automatically.
+```
+
+### 42. Cell spanning (colSpan / rowSpan)
+
+```tsx
+// Table-level: applies to all columns unless overridden by meta.onCell
+<Table
+  columns={columns}
+  data={data}
+  onCell={(cell, rowIndex) => {
+    if (cell.column.id === 'category' && rowIndex === 0) return { colSpan: 2 };
+    return {};
+  }}
+/>
+```
+
+```tsx
+// Column-level (higher priority than table-level onCell):
+const columns = [
+  col.accessor('product', {
+    header: 'Product',
+    meta: {
+      onCell: (cell, rowIndex) => {
+        if (cell.getValue() === 'Total') return { colSpan: 3 };
+        return {};
+      },
+    },
+  }),
+  col.accessor('qty',   { header: 'Qty' }),
+  col.accessor('price', { header: 'Price' }),
+];
+// Return { colSpan: 0 } or { rowSpan: 0 } to hide cells covered by a spanning neighbour.
+```
+
+### 43. Header spanning (via meta.onHeaderCell)
+
+```tsx
+const columns = [
+  col.accessor('firstName', {
+    header: 'First Name',
+    meta: {
+      onHeaderCell: () => ({ colSpan: 2 }),  // spans 2 header columns
+    },
+  }),
+  col.accessor('lastName', {
+    header: 'Last Name',
+    // this th will be covered — return colSpan: 0 on the header to hide it
+    meta: {
+      onHeaderCell: () => ({ colSpan: 0 }),
+    },
+  }),
+];
+```
+
+### 44. Pagination above the table
+
+```tsx
+<Table
+  columns={columns}
+  data={allData}
+  paginationProps={{
+    total: allData.length,
+    position: 'start',   // renders Pagination above the table
+  }}
+/>
+```
+
+### 46. Sorting — imperative via onTableReady
+
+```tsx
+let tableInstance: TableInstance<Person> | undefined;
+
+<Table
+  columns={columns}
+  data={data}
+  enableSorting
+  onTableReady={t => (tableInstance = t)}
+/>
+
+// Later — sort imperatively without external signal:
+tableInstance?.setSorting([{ id: 'name', desc: false }]);
+tableInstance?.setSorting([{ id: 'age', desc: false }, { id: 'score', desc: true }]);
+tableInstance?.setSorting([]);  // clear all sorting
+```
+
+---
+
+## CSS CLASSES (public API)
+
+| Class | Applied to |
+|---|---|
+| `sui-table-outer` | Outermost wrapper `<div>` (contains root + pagination component) |
+| `sui-table-has-pagination` | `sui-table-outer` when `paginationProps` is set |
+| `sui-table-root` | Root wrapper `<div>` inside `sui-table-outer` |
+| `sui-table-border-outer` | Root when `border.outer=true` |
+| `sui-table-resizable` | Root when `resizable=true` |
+| `sui-table-resizing` | Root while a column is being dragged |
+| `sui-table-fixed-header` | Root when `scroll.y` set or any column has `fixed` |
+| `sui-table-wrapper` | Scroll container `<div>` |
+| `sui-table-scroll` | Scroll wrapper when scroll is active |
+| `sui-table` | `<table>` element |
+| `sui-table-xs/sm/md/lg/xl` | Applied to `<table>` via wrapper class |
+| `sui-table-zebra-rows` | `<table>` when `zebra.rows=true` |
+| `sui-table-zebra-cols` | `<table>` when `zebra.cols=true` |
+| `sui-table-border-horizontal` | `<table>` when `border.horizontal=true` |
+| `sui-table-border-vertical` | `<table>` when `border.vertical=true` |
+| `sui-table-th-sortable` | `<th>` when column `getCanSort()` is true |
+| `sui-table-header-cell` | Inner `<div>` in `<th>` |
+| `sui-table-header-cell-text` | `<span>` wrapping header text |
+| `sui-table-sized-header-cell` | Header cell inner div when column has explicit size |
+| `sui-table-sort-icon` | Sort icon `<span>` in `<th>` |
+| `sui-table-sort-priority` | Sort priority badge `<span>` (shown when 2+ columns sorted) |
+| `sui-table-row-selected` | `<tr>` when row is selected |
+| `sui-table-row-expanded` | `<tr>` when row is expanded |
+| `sui-table-row-odd` | `<tr>` at even index (0, 2, 4...) — note: class name is "odd" but index is even |
+| `sui-table-row-even` | `<tr>` at odd index (1, 3, 5...) |
+| `sui-table-sized-cell` | Inner `<div>` in body `<td>` when column has explicit size (overflow ellipsis) |
+| `sui-table-empty` | `<td>` for empty state |
+| `sui-table-panel` | Header/footer panel `<div>` |
+| `sui-table-panel-bordered` | Header panel when `border.outer=true` |
+| `sui-table-selection-cell` | `<th>` and `<td>` for selection column |
+| `sui-table-expand-cell` | `<th>` and `<td>` for expand column |
+| `sui-table-expand-icon` | Icon wrapper `<span>` in expand cell |
+| `sui-table-expand-icon-svg` | Default chevron `<svg>` |
+| `sui-table-expand-icon-expanded` | Added to SVG when row is expanded (rotates 90°) |
+| `sui-table-expanded-row` | `<tr>` containing expanded content |
+| `sui-table-expanded-content` | `<td>` inside expanded row |
+| `sui-table-cell-fixed` | `<th>` / `<td>` for sticky columns |
+| `sui-table-cell-fixed-start-last` | Last sticky-start column (renders right shadow) |
+| `sui-table-cell-fixed-end-first` | First sticky-end column (renders left shadow) |
+| `sui-table-resize-handle` | Resize handle overlay `<div>` |
+| `sui-table-resize-handle-active` | Handle currently being dragged |
+| `tbe-tt-cell` | Class applied to the Tooltip root wrapping a cell with `meta.tooltip` |
+
+---
+
+## CSS CUSTOM PROPERTIES
+
+Resolved from `color` prop (via `getColor()` utility):
+
+| Property | Usage |
+|---|---|
+| `--color` | Primary accent: sort icons, hover border, resize handle active |
+| `--hover-bg-color` | `color-mix(color 10%, base-100)` — cell hover background |
+| `--row-highlight-bg-color` | `color-mix(color 6%, base-100)` — zebra rows, expanded content |
+| `--row-highlight-border` | `color-mix(color 15%, base-100)` — hover inset border |
+| `--header-bg-color` | `color-mix(color 20%, base-100)` — thead background |
+
+---
+
+## INTERNAL COLUMN IDs
+
+| ID | Created by | Notes |
+|---|---|---|
+| `__selection__` | `Table.Selection()` | Do not reference in `columnVisibility` or other state by this ID |
+| `__expanded__` | `Table.Expanded()` | Do not reference in `columnVisibility` or other state by this ID |
+
+---
+
+## CONSTRAINTS & EDGE CASES
+
+- **`getRowId` is required** for selection and controlled expansion to work correctly when `data` has a non-index stable ID. Without it, row IDs are `"0"`, `"1"`, etc. (position-based, breaks on re-order/filter).
+- **Controlled expanded keys use TanStack row IDs** (not raw data IDs). If `getRowId` returns `String(row.id)`, expanded keys must also use that same format.
+- **`defaultExpandAllRows` applies once** — subsequent data changes won't re-expand. Use controlled mode for dynamic expand-all.
+- **`simple` mode does not exist** — unlike Pagination, Table has no simple mode.
+- **`enableSorting` must be `true` at the table level** even if individual columns have `enableSorting: true` on their `ColumnDef`.
+- **Multi-sort is always on** — every header click adds to the sort stack. Override with `options={{ isMultiSortEvent: () => false }}`.
+- **`resizable={false}` is recommended** when using `meta.fixed` columns, as resizing computes widths separately from fixed offset computation (they can diverge).
+- **Zebra row classes**: `sui-table-row-odd` is applied to rows at even indexes (0, 2, 4...) and `sui-table-row-even` to odd indexes — the naming matches visual appearance, not the index parity.
+- **`zebra={true}`** enables row striping only (`{ rows: true, cols: false }`), not column striping. Pass `{ rows: true, cols: true }` explicitly for both.
+- **Column `size` vs resize**: TanStack's `size` on `ColumnDef` only activates `table-fixed` layout if the component detects it at initialization (`colsWithExplicitSize` Set). Columns added after mount via reactive `columns` signal may not update this set — define columns outside the component or in a `createMemo` that runs before first render.
+- **`options.state` is merged** — `p.options?.state` is spread into the table's `state` object, so you can extend state (e.g. custom meta state) without losing the controlled props.
+- **`footerPanel` class key**: The `class.tfoot` key is used for the footer panel wrapper div (not a `<tfoot>` element — the actual `<tfoot>` element is not rendered).
+- **Empty state colspan**: `table.getAllColumns().length` is used (includes hidden columns) — always renders correctly.
+- **`paginationProps` vs `pagination`**: `paginationProps` enables pagination AND renders the `<Pagination>` component. `pagination` is just a state seed/override. Both can be used together for server-side pagination.
+- **`loadingMore='manual'` blocks auto-fill**: In `'manual'` mode, the auto-fill behavior (filling viewport when content is too short) is suppressed — the user must click the button.
+- **`TableExample` / `TableSortingExample` etc.** are demo components only — do not use in production (not exported from `solid-tom-ui`).
+- **`showHeader=false`** removes the entire `<thead>` from the DOM. Column resizing and fixed-column offset measurement rely on `<thead>` cells, so combining `showHeader={false}` with `resizable` or `meta.fixed` columns may produce incorrect behavior.
+- **`onCell` is ignored in virtual mode** — cell spanning (`colSpan`/`rowSpan`) only works in non-virtual table rendering. Use it only when `virtual` is not set.
+- **`meta.onCell` vs `onCell`**: Column-level `meta.onCell` takes priority over the table-level `onCell` prop for the same column.
+- **`meta.tooltip`**: `usePortal` and `containerId` are injected automatically by the Table — do not set them manually. The `position` prop defaults to `'top'` if omitted.
+- **`meta.align`**: Affects alignment of both the header cell inner div and the body cell text alignment (`text-align`). Setting `meta.align='end'` right-aligns numbers automatically.
+- **`paginationProps.position`**: `'start'` renders Pagination above the table inside `sui-table-outer`; `'end'` (default) renders it below.
+
+---
+
+## DO / DON'T
+
+**DO**
+- Import `createColumnHelper` from `solid-tom-ui` (re-exported for convenience)
+- Always provide `getRowId` when using row selection or controlled expand with business IDs
+- Use `Table.Selection()` and `Table.Expanded()` as `ColumnDef` entries, not as components
+- Set `resizable={false}` when using fixed columns
+- Set `scroll={{ x: true, y: 400 }}` together when you need both fixed header and horizontal scroll with fixed columns
+- Use `onTableReady` to access the full TanStack table API for operations not covered by props
+- Use `options` prop to pass TanStack options not exposed directly (e.g. `autoResetPageIndex`, custom row models, `isMultiSortEvent`)
+- Always set `scroll.y` when using `virtual` — without a fixed viewport height, virtual mode has no effect
+- Tune `virtual.itemSize` to match your `size` variant row height for smoother scrolling (xs≈26, sm≈33, md≈40, lg≈48, xl≈58)
+- Set `resizable={false}` when using virtual scrolling
+- Use `getVirtualData` + `loadingMore` together for infinite scroll — `'auto'` for spinner, `'manual'` for button
+- The component handles concurrent call prevention internally — no extra guard needed in the `getVirtualData` callback
+- Always **append** new rows to existing data (`[...prev, ...newRows]`) — replacing the array causes a scroll jump
+- Provide `getRowId` when using infinite scroll so rows across pages have stable unique IDs
+- Use `paginationProps` to add a pagination UI below the table; it also enables client-side pagination automatically
+- Use `meta.align` to right-align numeric columns (`'end'`) or center-align status columns (`'center'`)
+- Use `meta.tooltip` for per-column cell tooltips — Table handles portal and container injection automatically
+- Use `meta.onCell` (column-level) for column-specific cell spanning; use table-level `onCell` for cross-column logic
+- Return `{ colSpan: 0 }` or `{ rowSpan: 0 }` from `onCell`/`meta.onCell` to hide cells covered by a spanning neighbour
+
+**DON'T**
+- Don't place `Table.Selection()` or `Table.Expanded()` more than once in the same `columns` array (duplicates are silently dropped)
+- Don't use `enableSorting` on individual `ColumnDef` only — you must also set `enableSorting` prop on `<Table>`
+- Don't pass `current`, `pageSize`, `defaultCurrent`, or `defaultPageSize` inside `paginationProps` — they are wired automatically
+- Don't rely on `__selection__` or `__expanded__` column IDs in external logic
+- Don't use `defaultExpandAllRows` when you need reactive expand-all — use controlled `expandedRowKeys` instead
+- Don't pass `color` as a hex string — it must be a design system token (`'info'`, `'primary'`, `'success'`, etc.)
+- Don't combine `virtual` with row expansion (`Table.Expanded()`) — expanded rows have variable heights that break virtualizer accuracy
+- Don't use `virtual` without `scroll.y` — the prop has no effect without a bounded scroll viewport
+- Don't use `getVirtualData` or `loadingMore` outside virtual mode — both props are no-ops without `virtual`
+- Don't replace the entire `data` array on each page load (infinite scroll) — always append to preserve scroll position
+- Don't forget to hide `loadingMore` when all data is loaded — leaving it as `'auto'` causes repeated empty fetches; leaving it as `'manual'` keeps showing the button forever
+- Don't pass `loadingMore='auto'` while not actually fetching — it will suppress the auto-fill trigger
+- Don't use `onCell` in virtual mode — cell spanning is ignored in virtual rendering
+- Don't set `usePortal` or `containerId` in `meta.tooltip` — the Table component injects these automatically
+- Don't use `meta.onCell` and table-level `onCell` for the same column expecting them to merge — column-level wins entirely
+- Don't assume `zebra={true}` enables column striping — it only enables row striping
+- Don't combine `showHeader={false}` with `resizable` or fixed columns — header cells are needed for measurement and resize handle positioning
+---
+
+## Component Conventions
+
+> **CSS encoding**: internal CSS classes use short encoded names (e.g. `tl01`, `tl02`) per project convention.
+
+> **Unique IDs**: if this component needs to generate HTML `id` attributes, always use `createUniqueId()` from `solid-js` — never `Math.random()` or `Date.now()`.

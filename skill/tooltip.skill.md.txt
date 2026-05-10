@@ -1,0 +1,222 @@
+## COMPONENT IDENTITY
+- **Import**: `import { Tooltip } from 'solid-tom-ui';`
+- **Export**: `Tooltip` (named export)
+- **Framework**: SolidJS
+- **Purpose**: Tooltip component — DaisyUI + CVA styling engine; two render modes (default / portal) controlled by `type` prop
+
+---
+
+## TYPE SIGNATURE
+
+```ts
+// Unified entry point — render mode controlled by `type` prop
+type TooltipProps = TooltipDefaultProps | TooltipPortalProps;
+
+// Default mode (IO-based, no overflow clip)
+type TooltipDefaultProps = {
+  type?: 'default';        // omit or set 'default'
+  hidden?: boolean;
+  children: JSX.Element;
+  position?: 'top' | 'bottom' | 'left' | 'right'; // default: 'top'
+  color?: BaseColorProps;  // default: 'neutral'
+  zIndex?: number;
+  class?: {
+    root?: string;
+    content?: string;
+  };
+} & (WithContent | WithCustomContent);
+
+// Portal mode (event-delegation, escapes overflow:hidden)
+type TooltipPortalProps = {
+  type: 'portal';          // REQUIRED to activate portal mode
+  hidden?: boolean;
+  children: SolidComponent;
+  position?: 'top' | 'bottom' | 'left' | 'right'; // default: 'top'
+  color?: BaseColorProps;  // default: 'neutral'
+  zIndex?: number;
+  class?: {
+    root?: string;
+    content?: string;
+  };
+  /**
+   * `id` of the overflow:hidden parent container.
+   * Required when type='portal'.
+   */
+  containerId: string;
+} & (WithContent | WithCustomContent);
+
+// MUTUALLY EXCLUSIVE — use ONE of the two below:
+type WithContent = {
+  content: string;         // plain text tooltip
+  customContent?: never;
+};
+type WithCustomContent = {
+  content?: never;
+  customContent: JSX.Element; // arbitrary JSX tooltip body
+};
+```
+
+### CONSTRAINTS
+
+- `content` and `customContent` are mutually exclusive.
+- `containerId` is **required** when `type='portal'`. TypeScript will error if omitted.
+- `TooltipPortal` is still exported as a backward-compat alias for `<Tooltip type="portal" ...>`.
+
+---
+
+## PROP REFERENCE
+
+| Prop            | Type                                     | Default     | Description                                                                   |
+| --------------- | ---------------------------------------- | ----------- | ----------------------------------------------------------------------------- |
+| `type`          | `'default' \| 'portal'`                  | `'default'` | Render mode: IO-based (default) or event-delegation portal                    |
+| `children`      | `JSX.Element` / `SolidComponent`         | —           | **Required.** The element that triggers the tooltip on hover                  |
+| `content`       | `string`                                 | —           | Plain text shown in tooltip                                                   |
+| `customContent` | `JSX.Element`                            | —           | Arbitrary JSX rendered inside tooltip bubble                                  |
+| `position`      | `'top' \| 'bottom' \| 'left' \| 'right'` | `'top'`     | Direction tooltip appears relative to trigger                                 |
+| `color`         | `BaseColorProps`                         | `'neutral'` | DaisyUI color variant                                                         |
+| `hidden`        | `boolean`                                | `undefined` | When `true`, bypasses tooltip wrapper entirely — renders children only        |
+| `zIndex`        | `number`                                 | `undefined` | Override automatic z-index management                                         |
+| `containerId`   | `string`                                 | —           | **Required when `type='portal'`.** The `id` of the element causing clipping   |
+| `class.root`    | `string`                                 | `undefined` | Extra Tailwind classes on the outer wrapper div                               |
+| `class.content` | `string`                                 | `undefined` | Extra Tailwind classes on the tooltip bubble                                  |
+
+---
+
+## TYPE DECISION RULE
+
+> **Always default to `type='default'` (or omit the `type` prop entirely).**
+> Only switch to `type='portal'` when the tooltip is **clipped by `overflow:hidden`, `overflow:clip`, or `clip-path`** on a parent container.
+
+| Situation                                                              | Choice                                                                        |
+| ---------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| Tooltip renders normally, not clipped                                  | `type='default'` _(default — no declaration needed)_                          |
+| Tooltip is inside a container with `overflow:hidden` / `overflow:clip` | `type='portal'` + `containerId` pointing to that specific container           |
+| Tooltip inside a scrollable table with hundreds of cells               | `type='portal'` + same `containerId` for all tooltips (the table's wrapper)   |
+| Not sure whether it will be clipped                                    | Try default first; switch to portal only if you observe the tooltip being cut |
+
+---
+
+## CHOOSING THE RIGHT `containerId`
+
+> **`containerId` must identify the specific element that is causing the tooltip to be hidden — not a global ancestor.**
+
+1. Find the element with `overflow:hidden` / `overflow:clip`.
+2. Assign that element an `id`.
+3. Pass that `id` as `containerId`.
+
+### What NOT to use as `containerId`
+
+| ❌ Avoid                                       | Why                                                         |
+| ---------------------------------------------- | ----------------------------------------------------------- |
+| `containerId="html-root"` (pointing to `<html>`) | Near-global listener — defeats all scoping               |
+| `containerId="root"` (app root div)             | Too broad — still covers the entire application            |
+
+---
+
+## USAGE PATTERNS
+
+### Pattern 1 — Plain text tooltip (most common)
+
+```tsx
+<Tooltip content="Save your work" position="top" color="primary">
+  <Button>Save</Button>
+</Tooltip>
+```
+
+### Pattern 2 — Custom JSX content
+
+```tsx
+<Tooltip
+  position="bottom"
+  color="info"
+  customContent={
+    <div class="bg-info text-info-content rounded-lg p-2">
+      <p class="font-bold">Title</p>
+      <p class="text-sm">Description text</p>
+    </div>
+  }
+>
+  <Button>Hover me</Button>
+</Tooltip>
+```
+
+### Pattern 3 — Conditionally hidden tooltip
+
+```tsx
+<Tooltip content="Only when permitted" hidden={!userHasPermission}>
+  <Button>Action</Button>
+</Tooltip>
+```
+
+### Pattern 4 — Portal mode (only when tooltip is clipped by overflow:hidden)
+
+```tsx
+<div id="my-overflow-box" style={{ overflow: 'hidden' }}>
+  <Tooltip type="portal" content="Escapes overflow!" containerId="my-overflow-box" position="top">
+    <Button>Hover me</Button>
+  </Tooltip>
+</div>
+```
+
+### Pattern 5 — Portal on many cells in a table (performance-optimized)
+
+```tsx
+// All tooltips sharing the same containerId use ONE pair of listeners
+<div id="my-table-container" class="max-h-64 overflow-auto">
+  <table>
+    <tbody>
+      <For each={rows}>
+        {row => (
+          <tr>
+            <td>
+              <Tooltip
+                type="portal"
+                content={row.label}
+                position="top"
+                color="primary"
+                containerId="my-table-container"
+              >
+                <span>{row.value}</span>
+              </Tooltip>
+            </td>
+          </tr>
+        )}
+      </For>
+    </tbody>
+  </table>
+</div>
+```
+
+---
+
+## BEHAVIOR NOTES FOR AGENTS
+
+1. **`hidden` prop short-circuits all tooltip logic** — when `hidden={true}`, renders `<>{children}</>` only.
+
+2. **`type='default'` uses IntersectionObserver** — a CSS sentinel (`too08`) inside the wrapper becomes visible on `:hover`, triggering the IO callback which appends the bubble to `document.body`. Zero JS event listeners on the trigger.
+
+3. **`type='portal'` uses event delegation** — internally uses a `WeakMap<Element, ContainerState>` keyed by the resolved container. Multiple tooltips with the same `containerId` share a single `mouseover`/`mouseout` listener pair.
+
+4. **`containerId` timing** — registration is deferred via `queueMicrotask` so it is safe even when the container is a parent in the same JSX tree.
+
+5. **`TooltipPortal` is a backward-compat alias** — `<TooltipPortal containerId="x" ...>` is equivalent to `<Tooltip type="portal" containerId="x" ...>`.
+
+---
+
+## COMMON MISTAKES TO AVOID
+
+| Mistake                                                      | Correct approach                                                           |
+| ------------------------------------------------------------ | -------------------------------------------------------------------------- |
+| Providing both `content` and `customContent`                 | Use only one — they are mutually exclusive                                 |
+| Using `type='portal'` as the default for every tooltip       | Only use it when the tooltip is actually clipped by overflow               |
+| Using `type='portal'` without `containerId`                  | TypeScript will error — always provide `containerId`                       |
+| Using `containerId="html-root"` or pointing to `<html>`      | Creates a near-global listener. Point to the specific overflow container   |
+| Using different `containerId` values in a loop               | All tooltips in the same container should share the same `containerId`     |
+
+---
+
+## Component Conventions
+
+> **CSS encoding**: internal CSS classes use short encoded names (e.g. `too01`, `too06`) per project convention.
+
+> **Unique IDs**: uses `createUniqueId()` from `solid-js` — never `Math.random()` or `Date.now()`.

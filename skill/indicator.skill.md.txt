@@ -1,0 +1,60 @@
+## COMPONENT IDENTITY
+- **Import**: `import { Indicator } from 'solid-tom-ui';`
+- **Export**: `Indicator` (named export)
+- **Framework**: SolidJS
+- **Purpose**: Displays a notification count badge at the top-right corner of a child element; suitable for icons, buttons, avatars, or any element needing an unread count
+
+## Props
+
+| Prop        | Type                | Default     | Description                                                          |
+|-------------|---------------------|-------------|----------------------------------------------------------------------|
+| `count`     | `number`            | `0`         | Number to display. When `0`, badge is hidden                         |
+| `showExact` | `boolean`           | `false`     | `true` to show large numbers exactly (e.g. `12345`)                  |
+| `color`     | `BaseColorProps`    | `'error'`   | Badge color via the project color system                             |
+| `top`       | `number \| string`  | `0`         | Vertical offset from corner (px number or CSS string)                |
+| `right`     | `number \| string`  | `0`         | Horizontal offset from corner (px number or CSS string)              |
+| `class`     | `{ root?, badge? }` | `undefined` | Override classes for wrapper (`root`) or badge (`badge`)             |
+| `children`  | `JSX.Element`       | —           | The element to attach the badge to                                   |
+
+## Display behavior
+
+- `count = 0` → badge hidden
+- `count = 1–99` → **circular** compact badge
+- `count ≥ 100` (and `showExact = false`) → shows `99+`, **pill** shape
+- `showExact = true` → shows exact number (e.g. `12345`), elongated pill
+
+## Usage examples
+
+```tsx
+// Basic — red badge on button
+<Indicator count={5}>
+  <button class="btn">Messages</button>
+</Indicator>
+
+// Custom color
+<Indicator count={42} color="primary">
+  <div class="size-10 rounded-full bg-gray-200" />
+</Indicator>
+
+// Show exact large number
+<Indicator count={1234} showExact>
+  <button class="btn">Notifications</button>
+</Indicator>
+
+// Adjust position
+<Indicator count={3} top={4} right={4}>
+  <button class="btn">Inbox</button>
+</Indicator>
+
+// Custom badge style
+<Indicator count={7} class={{ badge: 'bg-gradient-to-r from-purple-500 to-pink-500' }}>
+  <button class="btn">Items</button>
+</Indicator>
+```
+
+## Notes
+
+- The `<Indicator>` wraps its child in `div.relative.inline-flex` — this is expected behavior.
+- `top` / `right` accept a `number` (treated as px) or any valid CSS string (e.g. `'8px'`, `'0.5rem'`).
+- Badge uses `transform: translate(50%, -50%)` for precise corner placement — no extra adjustment needed in most cases.
+- To increase badge size, use `class={{ badge: 'size-6 text-xs' }}` rather than adding new props.

@@ -1,0 +1,191 @@
+## COMPONENT IDENTITY
+- **Import**: `import { Switch } from 'solid-tom-ui';`
+- **Export**: `Switch` (named export), `SwitchVariantProps` (type export)
+- **Framework**: SolidJS
+- **Purpose**: Toggle switch input — supports controlled and uncontrolled modes; styled with CVA variants + Tailwind
+
+## TYPE SIGNATURE
+
+```typescript
+import { Switch } from 'solid-tom-ui';
+
+// CONTROLLED mode: provide checked, do NOT provide defaultChecked
+<Switch
+  checked={boolean}                    // controlled value (required in controlled mode)
+  onChange?={(checked: boolean) => void}
+  // ...common props
+/>
+
+// UNCONTROLLED mode: provide defaultChecked, do NOT provide checked
+<Switch
+  defaultChecked={boolean}             // initial value (required in uncontrolled mode)
+  onChange?={(checked: boolean) => void}
+  // ...common props
+/>
+
+// MINIMAL mode: neither checked nor defaultChecked (defaults to false internally)
+<Switch onChange?={(checked: boolean) => void} />
+
+// Common props (applicable in all modes):
+//   size?    = 'xs' | 'sm' | 'md' | 'lg' | 'xl'    default: 'md'
+//   color?   = 'primary' | 'secondary' | 'accent' | 'neutral' | 'info' | 'success' | 'warning' | 'error'   default: 'primary'
+//   disabled?= boolean                               default: false
+//   loading? = boolean                               default: false
+//   onClick? = (checked: boolean) => void
+//   class?   = Partial<Record<'root' | 'content', string>>
+```
+
+## CONTROLLED vs UNCONTROLLED MUTEX RULE
+```
+checked      → controlled   → do NOT pass defaultChecked
+defaultChecked → uncontrolled → do NOT pass checked
+(neither)    → internal state starts at false
+```
+TypeScript enforces this: passing both `checked` and `defaultChecked` is a type error.
+
+## DEFAULTS
+| Prop | Default |
+|------|---------|
+| `size` | `'md'` |
+| `color` | `'primary'` |
+| `disabled` | `false` |
+| `loading` | `false` |
+| `defaultChecked` | `false` (when no controlled/uncontrolled prop given) |
+
+## SIZE REFERENCE
+| Value | Dimensions |
+|-------|-----------|
+| `xs` | `h-4 w-7` |
+| `sm` | `h-5 w-9` |
+| `md` | `h-6 w-11` (default) |
+| `lg` | `h-7 w-14` |
+| `xl` | `h-8 w-16` |
+
+## COLOR REFERENCE
+`primary` | `secondary` | `accent` | `neutral` | `info` | `success` | `warning` | `error`
+- When unchecked, the track color is always `bg-gray-300` regardless of `color`.
+- `color` applies only when the switch is checked.
+
+## USAGE PATTERNS
+
+### Uncontrolled (simplest)
+```tsx
+import { Switch } from 'solid-tom-ui';
+
+<Switch defaultChecked={false} onChange={checked => console.log(checked)} />
+```
+
+### Controlled
+```tsx
+import { createSignal } from 'solid-js';
+import { Switch } from 'solid-tom-ui';
+
+const [enabled, setEnabled] = createSignal(false);
+
+<Switch
+  checked={enabled()}
+  onChange={checked => setEnabled(checked)}
+/>
+
+// Toggle from outside
+<button onClick={() => setEnabled(v => !v)}>Toggle</button>
+```
+
+### With size and color
+```tsx
+<Switch size="lg" color="success" defaultChecked />
+<Switch size="xs" color="error" defaultChecked={false} />
+```
+
+### Disabled state
+```tsx
+<Switch size="md" color="primary" disabled defaultChecked={false} />
+<Switch size="md" color="primary" disabled={!hasPermission()} defaultChecked />
+```
+
+### Loading state (auto-disables the switch)
+```tsx
+const [saving, setSaving] = createSignal(false);
+
+<Switch
+  size="md"
+  color="primary"
+  loading={saving()}
+  defaultChecked
+/>
+// Note: loading=true automatically disables interaction
+```
+
+### Custom styling via class slot
+```tsx
+// Add shadow to the track
+<Switch size="md" color="primary" defaultChecked class={{ root: 'shadow-lg' }} />
+
+// Add ring/focus indicator
+<Switch size="xs" color="secondary" defaultChecked class={{ root: 'ring-2 ring-secondary ring-offset-2' }} />
+
+// Scale on hover
+<Switch size="lg" color="accent" defaultChecked class={{ root: 'hover:scale-110 transition-transform' }} />
+```
+
+### With onClick vs onChange
+```tsx
+// onChange fires with new value after toggle
+<Switch defaultChecked={false} onChange={newValue => applyChange(newValue)} />
+
+// onClick also fires with new value — use either; they receive the same value
+<Switch defaultChecked={false} onClick={newValue => console.log('clicked, new:', newValue)} />
+```
+
+## LOADING vs DISABLED BEHAVIOR
+| State | Interaction | Visual |
+|-------|-------------|--------|
+| `loading={true}` | Blocked (cursor-not-allowed, opacity-50) | Spinner shown inside thumb |
+| `disabled={true}` | Blocked (cursor-not-allowed, opacity-50) | No spinner |
+| `loading={true} disabled={true}` | Blocked (redundant, same as loading alone) | Spinner shown |
+
+> Prefer `loading` over `disabled` when an async operation is in progress.
+
+## ACCESSIBILITY
+- Renders as `<button role="switch" aria-checked={checked()}>`.
+- Keyboard focusable; click activates toggle.
+- `disabled` maps to the native `disabled` attribute on the button.
+
+## CLASS SLOTS
+| Slot | Targets |
+|------|---------|
+| `root` | The outer `<button>` element |
+| `content` | Declared in type but not currently wired in the implementation |
+
+> Use `class.root` for all custom styling of the switch track/wrapper.
+
+## ANTI-PATTERNS
+```tsx
+// ❌ Passing both checked and defaultChecked — TypeScript error
+<Switch checked={val()} defaultChecked={false} />
+
+// ❌ Expecting loading and disabled to behave differently — they both block interaction
+<Switch loading disabled />  // redundant
+
+// ❌ Using class.content — not wired in current implementation
+<Switch class={{ content: 'text-red-500' }} />
+// ✅ Use class.root for all styling
+<Switch class={{ root: 'shadow-xl' }} />
+
+// ❌ Forgetting that color only applies when checked
+// The unchecked track is always gray regardless of color prop
+```
+
+## DECISION RULES
+- **Controlled mode**: use when parent component needs to read or set the value programmatically.
+- **Uncontrolled mode**: use for simple local toggles where you only need `onChange` side effects.
+- **size**: match to surrounding UI density (`xs`/`sm` for dense tables, `lg`/`xl` for settings pages).
+- **color**: use semantic colors (`success` for enable, `error` for danger setting, `primary` for general).
+- **Swap vs Switch**: use `Switch` for boolean on/off settings; use `Swap` for icon-based visual toggles with animation.
+---
+
+## Component Conventions
+
+> **CSS encoding**: internal CSS classes use short encoded names (e.g. `sc01`, `sc02`) per project convention.
+
+> **Unique IDs**: if this component needs to generate HTML `id` attributes, always use `createUniqueId()` from `solid-js` — never `Math.random()` or `Date.now()`.

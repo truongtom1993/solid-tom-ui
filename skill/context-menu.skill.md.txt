@@ -1,0 +1,233 @@
+## COMPONENT IDENTITY
+- **Import**: `import { ContextMenu, createContextMenuHandle } from 'solid-tom-ui';`
+- **Exports**: `ContextMenu` (renderer), `createContextMenuHandle` (factory)
+- **Framework**: SolidJS
+- **Purpose**: Context-aware right-click menu with a registry pattern. Each UI zone registers its own items independently; the menu builds the visible list from the current context at trigger time. No coupling between zones — each feature owns its items.
+
+## TYPE SIGNATURES
+
+### createContextMenuHandle
+```typescript
+import { createContextMenuHandle } from 'solid-tom-ui';
+
+function createContextMenuHandle<TContext extends Record<string, unknown>>(): ContextMenuHandle<TContext>;
+
+type ContextMenuHandle<TContext> = {
+  register:   (item: RegistryItem<TContext>) => void;
+  unregister: (key: string) => void;
+  trigger:    (e: MouseEvent, ctx: TContext) => void;
+};
+```
+
+### ContextMenu
+```typescript
+import { ContextMenu } from 'solid-tom-ui';
+
+type ContextMenuProps<TContext> = {
+  handle: ContextMenuHandle<TContext>;             // REQUIRED: handle from createContextMenuHandle()
+  class?: Partial<Record<
+    'content' | 'item' | 'separator' | 'submenu',
+    string
+  >>;                                             // CSS slot overrides
+};
+```
+
+### RegistryItem (discriminated union)
+```typescript
+// Shared base fields
+type BaseRegistryItem<TContext> = {
+  key:         string;                           // REQUIRED: unique ID for dedup / unregister
+  label:       string;                           // REQUIRED: display text
+  when?:       (ctx: TContext) => boolean;       // visibility predicate — omit = always visible
+  disabled?:   (ctx: TContext) => boolean;       // disable predicate — omit = always enabled
+  shortcut?:   string;                           // display-only hint (e.g. "Ctrl+C"), not bound
+  prefixIcon?: JSXElement;                       // icon element rendered to the left of label
+  order?:      number;                           // sort order, lower = higher up (default: 100)
+  group?:      string;                           // items in the same group are visually grouped;
+                                                 // separators are auto-inserted between groups
+};
+
+// Action item
+type ActionRegistryItem<TContext> = BaseRegistryItem<TContext> & {
+  type:    'item';
+  onClick: (ctx: TContext) => void;              // REQUIRED for 'item'
+};
+
+// Submenu item
+type SubmenuRegistryItem<TContext> = BaseRegistryItem<TContext> & {
+  type:  'submenu';
+  items: RegistryItem<TContext>[];               // REQUIRED for 'submenu'; one level deep
+};
+
+type RegistryItem<TContext> = ActionRegistryItem<TContext> | SubmenuRegistryItem<TContext>;
+```
+
+## KEY RULES
+- `createContextMenuHandle<TContext>()` is generic — define your own context type that describes UI state at the moment of right-click
+- Only **one** context menu may be open at a time (shared singleton open/close state) — multiple handles still share this state
+- `<ContextMenu>` **must** be rendered in the JSX tree, typically near the app root to avoid z-index conflicts
+- `prefixIcon` accepts a `JSXElement` (rendered JSX), not a function component
+- Submenus are **one level deep** only — nested `items` arrays inside a submenu are not supported
+- `shortcut` is display-only and does **not** bind keyboard events — wire those separately
+
+## MINIMAL SETUP
+
+```tsx
+import { createContextMenuHandle, ContextMenu } from 'solid-tom-ui';
+
+// 1. Define context shape
+type MyCtx = { zone: 'editor' | 'sidebar'; hasSelection: boolean };
+
+// 2. Create handle (component level or module scope)
+const handle = createContextMenuHandle<MyCtx>();
+
+// 3. Register items
+handle.register({
+  key: 'copy',
+  type: 'item',
+  label: 'Copy',
+  when: ctx => ctx.hasSelection,
+  onClick: ctx => console.log('copy in', ctx.zone),
+});
+
+// 4. Render once near app root
+<ContextMenu handle={handle} />
+
+// 5. Trigger on right-click
+<div onContextMenu={e => handle.trigger(e, { zone: 'editor', hasSelection: true })}>
+  Right-click here
+</div>
+```
+
+## USAGE PATTERNS
+
+### Module-scoped handle (shared across components)
+```ts
+// context-menu.handle.ts
+export type AppCtx = { zone: string; isFile: boolean };
+export const appMenuHandle = createContextMenuHandle<AppCtx>();
+
+// FileExplorer.tsx — registers its own items
+appMenuHandle.register({ key: 'rename', type: 'item', label: 'Rename', when: ctx => ctx.isFile, onClick: ctx => rename(ctx) });
+
+// Editor.tsx — registers independent items
+appMenuHandle.register({ key: 'copy', type: 'item', label: 'Copy', when: ctx => ctx.zone === 'editor', onClick: () => copy() });
+
+// App.tsx — render once
+<ContextMenu handle={appMenuHandle} />
+```
+
+### Dynamic registration / unregistration
+```ts
+handle.register({ key: 'admin-delete', type: 'item', label: 'Delete', onClick: () => deleteItem() });
+
+// Later (e.g. user logs out):
+handle.unregister('admin-delete');
+```
+
+### Grouped items with separators
+```ts
+handle.register({ key: 'cut',    type: 'item', label: 'Cut',    group: 'clipboard', order: 10, onClick: () => cut() });
+handle.register({ key: 'copy',   type: 'item', label: 'Copy',   group: 'clipboard', order: 11, onClick: () => copy() });
+handle.register({ key: 'paste',  type: 'item', label: 'Paste',  group: 'clipboard', order: 12, onClick: () => paste() });
+handle.register({ key: 'delete', type: 'item', label: 'Delete', group: 'danger',    order: 20, onClick: () => del() });
+// Separator is auto-inserted between 'clipboard' and 'danger' groups
+```
+
+### Submenu
+```ts
+handle.register({
+  key: 'export',
+  type: 'submenu',
+  label: 'Export as',
+  items: [
+    { key: 'export-png', type: 'item', label: 'PNG',  onClick: () => exportPng() },
+    { key: 'export-svg', type: 'item', label: 'SVG',  onClick: () => exportSvg() },
+    { key: 'export-pdf', type: 'item', label: 'PDF',  onClick: () => exportPdf() },
+  ],
+});
+```
+
+### Icon and keyboard shortcut hints
+```ts
+import Copy from 'lucide-solid/icons/copy';
+
+handle.register({
+  key: 'copy',
+  type: 'item',
+  label: 'Copy',
+  prefixIcon: <Copy size={14} />,
+  shortcut: 'Ctrl+C',
+  onClick: () => copy(),
+});
+```
+
+### Multiple independent menus (separate context types)
+```ts
+const editorMenu = createContextMenuHandle<EditorCtx>();
+const tableMenu  = createContextMenuHandle<TableCtx>();
+
+<ContextMenu handle={editorMenu} />
+<ContextMenu handle={tableMenu} />
+```
+
+### CSS slot override
+```tsx
+<ContextMenu
+  handle={handle}
+  class={{
+    content:   'rounded-xl shadow-2xl',
+    item:      'text-sm',
+    separator: 'my-1 opacity-30',
+    submenu:   'font-medium',
+  }}
+/>
+```
+
+## DECISION RULES
+
+**Single handle vs multiple handles:**
+- One shared context type across the entire app → single module-scoped handle
+- Completely separate feature areas with different context shapes → separate handles per area
+
+**`when` vs `disabled`:**
+- Item doesn't belong to this context at all → use `when` (hides the item)
+- Item belongs but action is not available right now → use `disabled` (shows grayed-out)
+
+**`order` and `group`:**
+- Use `group` to visually separate categories (separators are automatic)
+- Use `order` to control position within a group (lower number = higher position)
+- If order is not specified, items are rendered in registration order (default: 100)
+
+**`prefixIcon`:**
+- Pass a rendered JSX element: `prefixIcon={<Copy size={14} />}`
+- Import icons by direct path to avoid bundling the entire lucide library
+
+## ANTI-PATTERNS
+```tsx
+// ❌ Rendering ContextMenu deep in a child component — may cause z-index issues
+<Modal>
+  <ContextMenu handle={handle} />   // wrong — render near app root instead
+</Modal>
+
+// ❌ Passing a function component as prefixIcon (it won't render)
+prefixIcon={Copy}                    // wrong
+prefixIcon={<Copy size={14} />}     // ✅ pass JSX element
+
+// ❌ Nesting submenus more than one level deep (not supported)
+{
+  type: 'submenu',
+  items: [{ type: 'submenu', items: [...] }]   // second level ignored
+}
+
+// ❌ Expecting shortcut to bind a keyboard event
+shortcut: 'Ctrl+Z'   // display only — wire onKeyDown separately
+```
+
+---
+
+## Component Conventions
+
+> **CSS encoding**: internal CSS classes use short encoded names (e.g. `cm01`, `cm02`) per project convention.
+
+> **Unique IDs**: if this component needs to generate HTML `id` attributes, always use `createUniqueId()` from `solid-js` — never `Math.random()` or `Date.now()`.

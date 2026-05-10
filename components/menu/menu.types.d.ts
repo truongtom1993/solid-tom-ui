@@ -38,7 +38,7 @@ export type ItemClickInfo = {
     isExpanded?: boolean | undefined;
     data?: Record<string, any>;
 };
-type BaseItem = {
+export type BaseItem = {
     id?: string;
     content: SolidComponent;
     disabled?: boolean;
@@ -51,20 +51,20 @@ type BaseFolderItem = BaseItem & {
     type: 'folder';
     defaultExpanded?: boolean;
 };
-type BaseTitleItem = BaseItem & {
+export type BaseTitleItem = BaseItem & {
     type: 'title';
 };
-type SyncFolder = BaseFolderItem & SyncItem;
-type LazyFolder = BaseFolderItem & AsyncItem;
-type TitleItem = BaseTitleItem & {
+export type SyncFolder = BaseFolderItem & SyncItem;
+export type LazyFolder = BaseFolderItem & AsyncItem;
+export type TitleItem = BaseTitleItem & {
     items: MenuTitleItems[];
 };
 type MenuTitleItems = FileItem | TitleItem | SyncFolder;
-type SyncItem = {
+export type SyncItem = {
     items: MenuItem[];
     lazyItems?: never;
 };
-type AsyncItem = {
+export type AsyncItem = {
     items?: never;
     lazyItems: () => Promise<MenuItem[]>;
 };

@@ -1,0 +1,531 @@
+## COMPONENT IDENTITY
+- **Import**: `import { toast, Toaster } from 'solid-tom-ui';`
+- **Exports**: `toast` (imperative API singleton), `Toaster` (optional config component), all toast type exports
+- **Framework**: SolidJS
+- **Purpose**: Imperative toast notification system — call `toast.success()`, `toast.error()` etc. from anywhere; `<Toaster>` is optional for customizing position and appearance
+```
+
+---
+
+## CORE CONCEPT
+
+`toast` is a **fully imperative, zero-setup** notification API. No context provider or `<Toaster>` component is required — calling any `toast.*` method auto-mounts a container into `document.body` on first use.
+
+The store is a **module-level singleton** (`createRoot`). All calls share the same reactive state across the entire app regardless of component tree.
+
+---
+
+## `toast` API REFERENCE
+
+### Signature
+
+```ts
+toast(message, options?) → string   // blank type
+toast.success(message, options?) → string
+toast.error(message, options?) → string
+toast.info(message, options?) → string
+toast.warning(message, options?) → string
+toast.loading(message, options?) → string
+toast.custom(message: (t: ToastData) => JSXElement, options?) → string
+toast.dismiss(toastId?: string) → void
+toast.remove(toastId?: string) → void
+toast.pop(options?: PopShiftOptions) → void
+toast.shift(options?: PopShiftOptions) → void
+toast.promise<T>(promise, promiseOptions, toastOptions?) → Promise<T>
+```
+
+All creation methods return the **toast ID** (`string`) which can be used for dismiss/remove/update.
+
+---
+
+## `ToastOptions`
+
+| Field           | Type                                                                     | Default                                   | Description                                                                                    |
+| --------------- | ------------------------------------------------------------------------ | ----------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `duration`      | `number`                                                                 | see per-type table                        | Auto-dismiss delay in ms. `Infinity` = never auto-dismiss.                                     |
+| `position`      | `ToastPosition`                                                          | `'top-right'`                             | Where this toast appears. Can override per-toast.                                              |
+| `icon`          | `SolidComponent`                                                         | type-specific                             | Custom icon. Replaces built-in icon. Accepts string emoji, JSX element, or component.          |
+| `iconTheme`     | `{ primary?: string; secondary?: string }`                               | —                                         | Colors for built-in SVG icons.                                                                 |
+| `class`         | `string`                                                                 | —                                         | Extra CSS class appended to `.sui-toast`.                                                      |
+| `style`         | `JSX.CSSProperties`                                                      | —                                         | Inline styles on `.sui-toast`.                                                                 |
+| `ariaProps`     | `{ role: 'status'\|'alert'; 'aria-live': 'assertive'\|'off'\|'polite' }` | `{ role:'status', 'aria-live':'polite' }` | ARIA attributes on the toast bar.                                                              |
+| `unmountDelay`  | `number`                                                                 | `400`                                     | Ms to wait after `visible=false` before removing from DOM (allows exit animation to complete). |
+| `canPause`      | `boolean`                                                                | `true`                                    | Pause auto-dismiss timer on mouse hover; resume on mouse leave.                                |
+| `showCloseIcon` | `boolean`                                                                | `true`                                    | Show the X close button (appears on hover).                                                    |
+
+### Default durations per type
+
+| Type      | Duration   |
+| --------- | ---------- |
+| `blank`   | 3000ms     |
+| `success` | 3000ms     |
+| `error`   | 3000ms     |
+| `info`    | 3000ms     |
+| `warning` | 3000ms     |
+| `loading` | `Infinity` |
+| `custom`  | 3000ms     |
+
+---
+
+## `ToastPosition` values
+
+```
+'top-left' | 'top-center' | 'top-right'
+'bottom-left' | 'bottom-center' | 'bottom-right'
+```
+
+Default global position: `'top-right'`.
+
+---
+
+## `Message` type
+
+```ts
+type Message = SolidComponent | ((toast: ToastData) => SolidComponent);
+// SolidComponent = string | JSX.Element | (() => JSX.Element)
+```
+
+- **String**: rendered as-is inside `<div class="flex-1 text-sm">`.
+- **JSX.Element**: rendered directly.
+- **Function**: called with the `ToastData` object → enables reactive content that reads `t.visible`, `t.paused`, `t.pauseDuration`.
+
+For `toast.custom`, `message` is always `(t: ToastData) => JSXElement` — full control over rendering.
+
+---
+
+## `ToasterProps` — Optional `<Toaster>` component
+
+```ts
+interface ToasterProps {
+  position?: ToastPosition; // Default position for all toasts (default: 'top-right')
+  toastOptions?: DefaultToastOptions; // Global defaults per type (not yet applied in impl — reserved)
+  gutter?: number; // Gap between toasts in px (default: 10)
+  containerStyle?: JSX.CSSProperties; // Style on the outer container div (not implemented in current render)
+  containerClassName?: string; // Class on the outer container div (not implemented in current render)
+  maxToasts?: number; // Max simultaneous toasts (not implemented — store uses 10)
+}
+```
+
+> `<Toaster>` is optional. If omitted, the container is auto-mounted with defaults when `toast.*` is first called. Mounting `<Toaster>` does NOT prevent the auto-mount — it just configures the `ToasterInternal` with custom props.
+
+---
+
+## `PromiseOptions<T>`
+
+```ts
+interface PromiseOptions<T> {
+  loading: SolidComponent; // Message while promise is pending
+  success: SolidComponent | ((result: T) => SolidComponent); // Message on resolve
+  error: SolidComponent | ((error: any) => SolidComponent); // Message on reject
+}
+```
+
+`success` and `error` accept `ValueOrFunction` — pass a static value or a function receiving the resolved/rejected value.
+
+---
+
+## `PopShiftOptions`
+
+```ts
+interface PopShiftOptions {
+  animate?: boolean; // default: true
+}
+```
+
+- `animate: true` (default) → calls `dismissPop/dismissShift` — sets `visible=false`, plays exit animation, then removes after `unmountDelay`.
+- `animate: false` → calls `removePop/removeShift` — removes immediately from store with no animation.
+
+---
+
+## BEHAVIORAL RULES (inferred from implementation)
+
+### Auto-mount
+
+`ensureContainer()` is called at the start of every toast creation method. Creates `#sui-toast-container` div and renders `<ToasterInternal />` into it via SolidJS `render()`. Runs **once** per page load (`containerMounted` flag). Subsequent calls are no-ops.
+
+### Toast store (singleton)
+
+- Module-level singleton via `createRoot(createToastStore)`.
+- Holds `toasts: Accessor<ToastData[]>` and `pausedAt: Accessor<number | null>`.
+- New toasts are **prepended** (most recent first) capped at **10** (`MAX_TOASTS`).
+- Older toasts beyond the limit are sliced off immediately.
+- `upsertToast`: if a toast with the same id exists, merges updates into it (sets `updatedAt`). Otherwise prepends.
+
+### dismiss vs remove
+
+```
+toast.dismiss(id?)
+  → sets visible=false on matching toast(es)
+  → triggers exit animation (unmountDelay ms) then auto-removes via removeToast
+
+toast.remove(id?)
+  → immediately filters toast(es) from array
+  → NO animation
+```
+
+Omitting `id` from either method affects **all** toasts.
+
+### pop vs shift
+
+```
+toast.pop()   → targets the OLDEST visible toast (last in array, index from end)
+toast.shift() → targets the NEWEST visible toast (first visible, index from start)
+```
+
+Array order: newest first (`[toast5, toast4, toast3, toast2, toast1]`).
+
+- `pop` → traverses from end → oldest = `toast1`.
+- `shift` → traverses from start → newest = `toast5`.
+
+### Pause on hover
+
+When `canPause=true` (default):
+
+- `mouseenter` on `ToastWrapper` → pauses dismiss timer; records remaining time.
+- `mouseleave` → restarts timer with remaining time (not original duration).
+- Remaining time is tracked as a local variable in `ToastWrapper` (not in store).
+
+### toast.promise lifecycle
+
+```
+1. Creates loading toast (duration=Infinity by default from options)
+2. On promise resolve → updateToast(id, { type:'success', message: resolved, icon: undefined })
+3. Schedules dismissToast(id) after toastOptions.duration ?? 3000ms
+4. On promise reject → updateToast(id, { type:'error', message: error, icon: undefined })
+5. Schedules dismissToast(id) after toastOptions.duration ?? 3000ms
+6. Re-throws the error
+```
+
+### Position grouping
+
+`ToasterInternal` renders 6 `PositionContainer` components (one per position). Each filters from `toastStore.toasts()`. Per-toast `position` field overrides the `Toaster`'s default position.
+
+### Animation (Web Animations API)
+
+**Enter** (when `visible` becomes `true`):
+
+```
+translate3d(0, direction*-200%, 0) scale(0.6) opacity:0.5
+→ translate3d(0,0,0) scale(1) opacity:1
+duration: 350ms, easing: cubic-bezier(.21,1.02,.73,1)
+```
+
+**Exit** (when `visible` becomes `false`):
+
+```
+translate3d(0,0,-1px) scale(1) opacity:1
+→ translate3d(0, direction*-150%, -1px) scale(0.4) opacity:0
+duration: 400ms, easing: cubic-bezier(.06,.71,.55,1)
+```
+
+`direction`: `+1` for top positions (slides up), `-1` for bottom positions (slides down).
+
+### Close button positioning
+
+```
+position includes 'right' → isCloseOnRight = false → close btn at -left-2
+position does NOT include 'right' → isCloseOnRight = true → close btn at -right-2
+```
+
+The close button is absolutely positioned at `-top-2` and appears on hover (`opacity-0` → `opacity-100`).
+
+---
+
+## USAGE PATTERNS
+
+### 1. Basic types (no setup needed)
+
+```tsx
+import { toast } from 'solid-tom-ui';
+
+toast('Plain notification');
+toast.success('Operation completed!');
+toast.error('Something went wrong.');
+toast.info('Just so you know...');
+toast.warning('Be careful!');
+toast.loading('Fetching data...'); // duration=Infinity, dismiss manually
+```
+
+### 2. Capture id for later control
+
+```tsx
+const id = toast.loading('Saving...');
+
+// Later:
+toast.dismiss(id); // animate out
+toast.remove(id); // instant remove
+```
+
+### 3. Custom position per toast
+
+```tsx
+toast.success('Saved!', { position: 'bottom-center' });
+toast.error('Failed!', { position: 'top-left' });
+```
+
+### 4. Custom duration
+
+```tsx
+toast('Quick!', { duration: 1000 }); // 1 second
+toast('Slow...', { duration: 8000 }); // 8 seconds
+toast('Until dismissed', { duration: Infinity }); // never auto-dismiss
+```
+
+### 5. Custom icon
+
+```tsx
+// Emoji string
+toast('Fire alert!', { icon: '🔥' });
+
+// JSX element
+toast.success('Done!', { icon: <MyCheckIcon size={20} /> });
+```
+
+### 6. Custom icon colors (built-in icons)
+
+```tsx
+toast.success('Dark theme', {
+  iconTheme: { primary: '#38bdf8', secondary: '#1f2937' },
+  style: { background: '#1f2937', color: '#f3f4f6' },
+});
+```
+
+### 7. JSX message content
+
+```tsx
+toast(
+  <div>
+    <strong>Upload complete</strong>
+    <p class="text-sm text-gray-500">3 files uploaded successfully</p>
+  </div>,
+  { duration: 4000 },
+);
+```
+
+### 8. Message as function (reactive, accesses ToastData)
+
+```tsx
+toast.success(t => `Toast ID: ${t.id}`, { duration: 5000 });
+```
+
+### 9. toast.promise — async flow
+
+```tsx
+// Static messages
+toast.promise(fetchData(), {
+  loading: 'Loading...',
+  success: 'Data loaded!',
+  error: 'Failed to load.',
+});
+
+// Dynamic messages using resolved/rejected value
+toast.promise(
+  saveUser(userData),
+  {
+    loading: 'Saving user...',
+    success: user => `Welcome, ${user.name}!`,
+    error: err => `Error: ${err.message}`,
+  },
+  { duration: 4000 }, // how long success/error stays visible
+);
+
+// Await the promise result
+const result = await toast.promise(apiCall(), { loading: '...', success: 'Done', error: 'Failed' });
+```
+
+### 10. Fully custom toast (`toast.custom`)
+
+```tsx
+// Receives ToastData, full control over rendering
+toast.custom(
+  t => (
+    <div class="flex items-center gap-3 rounded-lg bg-white px-4 py-3 shadow-lg">
+      <span>Custom notification</span>
+      <button onClick={() => toast.dismiss(t.id)}>✕</button>
+    </div>
+  ),
+  { duration: 5000 },
+);
+```
+
+### 11. Custom toast with progress bar (using t.paused, t.pauseDuration)
+
+```tsx
+const duration = 6000;
+
+toast.custom(
+  t => {
+    const [life, setLife] = createSignal(100);
+    const startTime = Date.now();
+
+    createEffect(() => {
+      if (t.paused) return;
+      const interval = setInterval(() => {
+        const elapsed = Date.now() - startTime - t.pauseDuration;
+        setLife(100 - (elapsed / duration) * 100);
+      }, 50);
+      onCleanup(() => clearInterval(interval));
+    });
+
+    return (
+      <div class="min-w-[300px] rounded-lg bg-white p-4 shadow-lg">
+        <p>Processing...</p>
+        <div class="mt-2 h-1 w-full rounded bg-gray-200">
+          <div class="h-1 rounded bg-blue-500" style={{ width: `${life()}%` }} />
+        </div>
+      </div>
+    );
+  },
+  { duration, canPause: true },
+);
+```
+
+### 12. Dismiss all / remove all
+
+```tsx
+toast.dismiss(); // animate out all
+toast.remove(); // instant remove all
+```
+
+### 13. pop and shift
+
+```tsx
+// Remove oldest visible toast (with animation)
+toast.pop();
+
+// Remove oldest visible toast (instant, no animation)
+toast.pop({ animate: false });
+
+// Remove newest visible toast (with animation)
+toast.shift();
+
+// Remove newest visible toast (instant)
+toast.shift({ animate: false });
+```
+
+### 14. Disable hover-pause
+
+```tsx
+toast.info('No pause on hover', { canPause: false });
+```
+
+### 15. Hide close button
+
+```tsx
+toast.loading('Processing (no X)...', { showCloseIcon: false });
+```
+
+### 16. Custom class and style
+
+```tsx
+toast.error('Red Alert!', {
+  class: 'border-2 border-red-500',
+  style: { background: '#fef2f2', color: '#991b1b' },
+});
+```
+
+### 17. Optional `<Toaster>` for global config
+
+```tsx
+// In your app root (optional — only needed to set non-default global position/gutter)
+import { Toaster } from 'solid-tom-ui';
+
+<Toaster position="bottom-right" gutter={16} />;
+```
+
+### 18. Stress test / max toasts
+
+```tsx
+// Only 10 toasts are shown simultaneously; oldest are dropped when limit exceeded
+for (let i = 0; i < 15; i++) {
+  toast.success(`Toast #${i + 1}`, { duration: 8000 });
+}
+// Toasts 11-15 push out toasts 1-5 from the store
+```
+
+---
+
+## CSS CLASSES (public API for customization)
+
+| Class                   | Applied to                                                         |
+| ----------------------- | ------------------------------------------------------------------ |
+| `sui-toast`             | Toast bar `<div>` (icon + message + close)                         |
+| `sui-toast-with-close`  | Root `<div>` when `showCloseIcon=true` (adds `position: relative`) |
+| `sui-toast-close-btn`   | Close button `<div>` (absolutely positioned, opacity-0 by default) |
+| `sui-toast-close-right` | Close button when NOT on a right-position toast (`-right-2`)       |
+| `sui-toast-close-left`  | Close button when on a right-position toast (`-left-2`)            |
+
+Custom classes can be appended via `options.class` (string, appended to `.sui-toast`).
+
+> Note: `sui-toast-with-close` is defined in CSS but the `ToastBar` component does not currently add it — close button positioning relies on `position: relative` on `.sui-toast` itself via the absolute `sui-toast-close-btn`.
+
+---
+
+## `ToastData` — Internal toast object (available in `toast.custom` and `Message` functions)
+
+| Field           | Type                             | Description                                                                       |
+| --------------- | -------------------------------- | --------------------------------------------------------------------------------- |
+| `id`            | `string`                         | Unique ID (from `createUniqueId`). Use with `toast.dismiss(t.id)`.                |
+| `type`          | `ToastType`                      | `'success' \| 'error' \| 'info' \| 'warning' \| 'loading' \| 'blank' \| 'custom'` |
+| `message`       | `Message`                        | Original message passed to the creator.                                           |
+| `visible`       | `boolean`                        | `true` = shown, `false` = exit animation playing.                                 |
+| `paused`        | `boolean`                        | `true` when hover-paused.                                                         |
+| `pauseDuration` | `number`                         | Total accumulated ms the toast has been paused. Use to offset timers.             |
+| `duration`      | `number`                         | Auto-dismiss duration in ms.                                                      |
+| `position`      | `ToastPosition`                  | Effective position of this toast.                                                 |
+| `createdAt`     | `number`                         | `Date.now()` at creation.                                                         |
+| `updatedAt`     | `number \| undefined`            | `Date.now()` at last upsert/update.                                               |
+| `canPause`      | `boolean`                        | Whether hover pausing is active.                                                  |
+| `showCloseIcon` | `boolean`                        | Whether X button is rendered.                                                     |
+| `icon`          | `SolidComponent \| undefined`    | Custom icon override.                                                             |
+| `iconTheme`     | `IconTheme \| undefined`         | Colors for built-in icons.                                                        |
+| `style`         | `JSX.CSSProperties \| undefined` | Inline styles on toast bar.                                                       |
+| `class`         | `string \| undefined`            | Extra class on toast bar.                                                         |
+
+---
+
+## CONSTRAINTS & EDGE CASES
+
+- **No setup required**: `toast.*` auto-mounts the container on first call. Never call `toast` before `document.body` exists (i.e., not during SSR without a DOM).
+- **Singleton store**: all calls share one store. There is no per-component scope. Calling `toast.remove()` clears toasts from ALL components.
+- **Max 10 toasts**: hardcoded `MAX_TOASTS = 10` in the store. Toasts beyond this limit are sliced off the end (oldest dropped). `ToasterProps.maxToasts` is defined but not connected to the store limit.
+- **`toast.loading` is `duration=Infinity`** by default — it will never auto-dismiss. Always call `toast.dismiss(id)` when the operation completes, or use `toast.promise`.
+- **`toast.promise` re-throws on error**: it catches the rejection, updates the toast to error state, then `throw error` — callers must handle the rejection themselves.
+- **`toast.promise` uses `toastOptions.duration ?? 3000`** for the success/error display window, regardless of the type's default duration. Pass `{ duration: 5000 }` as `toastOptions` for a longer window.
+- **`toast.custom` message signature is different**: must be `(t: ToastData) => JSXElement`, not `SolidComponent`. The `t` parameter gives access to `t.id`, `t.visible`, `t.paused`, `t.pauseDuration`.
+- **Close button position depends on toast position**, not on layout: right-side positions (`top-right`, `bottom-right`) get `-left-2`; all others get `-right-2`.
+- **`Toaster` component must be mounted before first `toast.*` call** if you want custom config. If `toast.*` fires first, the auto-mounted `ToasterInternal` uses defaults and ignores a later `<Toaster>` (because `containerMounted` is already `true`).
+- **`unmountDelay` default is 400ms** — must be ≥ exit animation duration (400ms) for animations to complete before DOM removal.
+- **`pop` targets oldest, `shift` targets newest**: in the store array (newest-first), `pop` scans from the end, `shift` from the start.
+- **Pause resume uses remaining time**, not original duration — hover-pause is accurate to the ms.
+- Custom toasts using `createSignal`/`createEffect` inside `toast.custom` are valid — they run in a reactive scope because `render()` creates one. Always use `onCleanup` to clear intervals.
+
+---
+
+## DO / DON'T
+
+**DO**
+
+- Call `toast.*` directly from event handlers, async functions, or anywhere in the app — no setup needed.
+- Save the returned id when you need to dismiss/update a specific toast: `const id = toast.loading(...)`.
+- Use `toast.promise` for async operations — it handles loading → success/error transition automatically.
+- Pass `duration: Infinity` for toasts that should stay until explicitly dismissed.
+- Use `toast.custom(t => ...)` for complex interactive notifications (progress bars, action buttons, reactive content).
+- Access `t.paused` and `t.pauseDuration` inside `toast.custom` to build accurate progress indicators.
+- Use `toast.dismiss()` (no id) to clear all toasts, e.g., on route navigation.
+- Import from the barrel: `import { toast } from 'solid-tom-ui'`.
+
+**DON'T**
+
+- Don't add `<Toaster>` expecting it to clear existing auto-mounted container — `containerMounted` prevents double-mounting. Place `<Toaster>` before any `toast.*` calls if you need custom config.
+- Don't use `toast.remove()` when you want the exit animation — use `toast.dismiss()` instead.
+- Don't forget to dismiss `toast.loading` — it has `duration: Infinity` and will stay forever without manual dismissal or `toast.promise`.
+- Don't mutate `ToastData` directly — always use `toastStore.updateToast(id, updates)` (or `toast.dismiss`/`toast.remove` via the public API).
+- Don't pass `(t: ToastData) => JSX` to `toast.success/error/info/warning` — that pattern is only valid for `toast.custom`. For other types, the function receives `ToastData` but must return `SolidComponent`, not necessarily `JSXElement`.
+- Don't import `ToastExample` in production — it is a demo component only (not exported from `solid-tom-ui`).
+- Don't rely on more than 10 simultaneous toasts — extras are silently dropped from the store.
+---
+
+## Component Conventions
+
+> **CSS encoding**: internal CSS classes use short encoded names (e.g. `ts01`, `ts02`) per project convention.

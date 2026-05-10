@@ -1,0 +1,484 @@
+## COMPONENT IDENTITY
+- **Import**: `import { Tab } from 'solid-tom-ui';`
+- **Exports**: `Tab` (named export), `TabItem`, `TabProps`, `BaseTabProps` (type exports)
+- **Framework**: SolidJS
+- **Purpose**: Tab navigation component with multiple visual styles and controlled/uncontrolled active tab state
+
+---
+
+## TYPE REFERENCE
+
+### `TabItem`
+
+```ts
+type TabItem = {
+  key: string;                         // REQUIRED. Unique identifier for the tab.
+  label?: string;                      // Display label. Default fallback: `Tab ${index + 1}`
+  children: SolidComponent;            // Tab panel content. string | JSX.Element | () => JSX.Element
+  icon?: SolidComponent;               // Icon rendered before label.
+  disabled?: boolean;                  // Blocks click; adds opacity-50 pointer-events-none.
+  closable?: boolean;                  // Default: true. Set to false to hide close button.
+  pinned?: boolean;                    // Default: false. Pinned tabs float to front of header.
+};
+```
+
+### `TabProps` — discriminated union on `tabPlacement`
+
+```ts
+type TabProps = HorizontalTabProps | VerticalTabProps;
+
+type HorizontalTabProps = BaseTabProps & {
+  tabPlacement?: 'horizontal';          // Default when omitted
+  position?: 'top' | 'bottom';         // Default: 'top'
+};
+
+type VerticalTabProps = BaseTabProps & {
+  tabPlacement: 'vertical';            // Must be explicitly set
+  position?: 'left' | 'right';         // Default: 'left'
+};
+```
+
+### `BaseTabProps`
+
+| Prop | Type | Default | Description |
+|---|---|---|---|
+| `items` | `Accessor<TabItem[]>` | **required** | SolidJS accessor (signal getter) for the tab list. |
+| `setItems` | `Setter<TabItem[]>` | **required** | SolidJS setter for the tab list. The component mutates items internally for add/remove/pin/rename. |
+| `color` | `BaseColorProps` | `'primary'` | Color theme for active state, pin indicator, and active gradient. |
+| `variants` | `'lift' \| 'box' \| 'border'` | `'box'` | Visual style variant for tab items. |
+| `align` | `'left' \| 'center' \| 'right'` | `'left'` | Horizontal alignment of tab items in the header (maps to `justify-start/center/end`). |
+| `defaultActiveKey` | `string` | first item's `key` | Initial active tab key. Uncontrolled — not reactive after mount. |
+| `canAdd` | `boolean` | `true` | Show the `+` add button in the header. |
+| `canPin` | `boolean` | `false` | Show pin/unpin button on hover. Pinned tabs move to front of header. |
+| `canRename` | `boolean` | `true` | Allow double-click to rename tab label inline. |
+| `preRender` | `boolean` | `false` | If `true`, keep panel in DOM after first activation (`display:hidden` when inactive). If `false`, unmount panel when inactive. |
+| `onChange` | `(activeKey: string) => void` | — | Fires when active tab changes. |
+| `onAdd` | `() => TabItem \| void` | — | Custom add handler. Return a `TabItem` to use it; return `void` to have the component create a default tab. |
+| `onRemove` | `(key: string, label: string) => Promise<boolean> \| boolean \| void` | — | Called before removal. Return `false` to abort. Async supported. |
+| `onPin` | `(key: string, pinned: boolean) => void` | — | Fires after pin state changes. |
+| `onRename` | `(key: string, newLabel: string) => void` | — | Fires after rename completes (Enter or blur). Not called if value is empty or unchanged. |
+| `class` | `Partial<Record<'root' \| 'header' \| 'item' \| 'content' \| 'addButton', string>>` | — | Merge custom classes onto specific structural elements. |
+
+---
+
+## BEHAVIORAL RULES (inferred from implementation)
+
+### State management — signal pair required
+
+`Tab` requires an externally owned `[items, setItems]` signal pair.
+The component calls `setItems` directly for: add, remove, pin/unpin, rename.
+**The consumer owns the data; the component owns only `activeKey` internally.**
+
+```tsx
+const [items, setItems] = createSignal<TabItem[]>([...]);
+<Tab items={items} setItems={setItems} />
+```
+
+### Active key management
+
+- Initialized once from `defaultActiveKey` or `items()[0].key`.
+- Not controllable from outside after mount (no `activeKey` prop).
+- Auto-corrects: if `items` changes and active key no longer exists in the list, resets to `items()[0].key`.
+- On remove of the active tab: switches to the next tab (`currentIndex + 1`), or the previous (`currentIndex - 1`) if no next exists.
+
+### Pinned tabs
+
+- Pinned items are sorted to the **front** of the header via `sortedItems` memo: `[...pinned, ...unpinned]`.
+- A visual separator (`sui-tab-separator`) renders between pinned and unpinned groups when both exist.
+- Pinned items always use `preRender = true` regardless of the global `preRender` prop — their content is kept in the DOM once rendered.
+- Pin button (`canPin={true}`) is hidden by default, revealed on hover (opacity transition).
+- `handlePinTab` toggles `item.pinned` and calls `setItems` → triggers reactive re-sort.
+
+### Content rendering (`preRender`)
+
+```
+preRender=false (default):
+  shouldRenderContent = activeKey === item.key
+  → Panel unmounted when tab is not active (content resets on re-activation)
+
+preRender=true:
+  shouldRenderContent = renderedTabs.has(item.key) || isActive
+  → Panel rendered on first activation, then kept mounted with class="hidden" when inactive
+  → Content state is preserved between activations
+
+Pinned tabs always use preRender=true behavior regardless of global prop.
+```
+
+### Add tab behavior
+
+```
+onAdd defined → calls onAdd()
+  → if returns TabItem: appends to items, sets activeKey to new tab
+  → if returns void: no-op (consumer handles mutation themselves)
+
+onAdd NOT defined → creates default tab:
+  key: createUniqueId()
+  label: `Tab ${items().length + 1}`
+  children: <div>New Tab Content</div>
+```
+
+### Remove tab behavior
+
+1. Checks `item.closable !== false` — if `false`, abort silently.
+2. Calls `onRemove(key, label)` if defined — awaits result.
+3. If result is `false`, abort.
+4. If active tab is being removed, switches active to adjacent tab.
+5. Filters item from `items` via `setItems`.
+6. Removes key from `renderedTabs` set.
+
+Middle-mouse-button click (`button === 1`) on a tab item also triggers removal if `closable !== false`.
+
+### Rename behavior
+
+- Triggered by `dblclick` on tab item (if `canRename=true` and not disabled).
+- Renders an `<input class="sui-tab-rename-input">` in place of the label span.
+- Input auto-focuses and selects all text on mount (via `setTimeout(..., 0)`).
+- Commits on: `Enter` key or `blur`.
+- Cancels on: `Escape` key.
+- Only commits if new value is non-empty AND different from current label.
+- `setItems` updates `label`; `onRename` callback fires after update.
+
+### `position` validation / `computedPosition`
+
+```
+tabPlacement='horizontal': position must be 'top' | 'bottom' → defaults to 'top'
+tabPlacement='vertical':   position must be 'left' | 'right' → defaults to 'left'
+```
+Invalid positions are silently corrected by `computedPosition` memo.
+
+### Variants × position matrix (CSS behavior)
+
+| Variant | Horizontal Top | Horizontal Bottom | Vertical Left | Vertical Right |
+|---|---|---|---|---|
+| `box` | Rounded tab items, shadow on active | Same | Full-width items, left color-bar on pinned | Same |
+| `border` | Bottom border accent line | Top border accent line | Left border accent line | Right border accent line |
+| `lift` | Rounded-top tabs, translate-y +1px active | Rounded-bottom tabs, -translate-y active | Rounded-left tabs, no right border | Rounded-right tabs, no left border |
+
+---
+
+## USAGE PATTERNS
+
+### 1. Minimal horizontal tabs
+
+```tsx
+const [items, setItems] = createSignal<TabItem[]>([
+  { key: 'a', label: 'Tab A', children: <div>Content A</div> },
+  { key: 'b', label: 'Tab B', children: <div>Content B</div> },
+]);
+
+<Tab items={items} setItems={setItems} />
+```
+
+### 2. With icons
+
+```tsx
+import Home from 'lucide-solid/icons/home';
+
+const [items, setItems] = createSignal<TabItem[]>([
+  {
+    key: 'home',
+    label: 'Home',
+    icon: <Home size={14} />,
+    children: <div class="p-4">Home content</div>,
+  },
+]);
+
+<Tab items={items} setItems={setItems} />
+```
+
+### 3. onChange callback
+
+```tsx
+<Tab
+  items={items}
+  setItems={setItems}
+  onChange={(key) => {
+    console.log('Active tab changed to:', key);
+    // key is the `key` field of the newly active TabItem
+  }}
+/>
+```
+
+### 4. Variant styles
+
+```tsx
+// box (default)
+<Tab items={items} setItems={setItems} variants="box" />
+
+// border — clean underline style
+<Tab items={items} setItems={setItems} variants="border" />
+
+// lift — elevated card-like tabs
+<Tab items={items} setItems={setItems} variants="lift" />
+```
+
+### 5. Placement and position combos
+
+```tsx
+// Horizontal top (default)
+<Tab items={items} setItems={setItems} tabPlacement="horizontal" position="top" />
+
+// Horizontal bottom
+<Tab items={items} setItems={setItems} tabPlacement="horizontal" position="bottom" />
+
+// Vertical left
+<Tab items={items} setItems={setItems} tabPlacement="vertical" position="left" />
+
+// Vertical right
+<Tab items={items} setItems={setItems} tabPlacement="vertical" position="right" />
+```
+
+### 6. Custom add behavior (`onAdd`)
+
+```tsx
+let counter = 1;
+
+<Tab
+  items={items}
+  setItems={setItems}
+  canAdd
+  onAdd={() => {
+    const key = createUniqueId();
+    return {
+      key,
+      label: `Document ${counter++}`,
+      children: <div class="p-4">New document content</div>,
+    };
+  }}
+/>
+```
+
+### 7. Guarded remove (`onRemove`)
+
+```tsx
+<Tab
+  items={items}
+  setItems={setItems}
+  onRemove={async (key, label) => {
+    const confirmed = await showConfirmDialog(`Close "${label}"?`);
+    return confirmed; // false → abort removal
+  }}
+/>
+```
+
+### 8. Non-closable tab
+
+```tsx
+const [items, setItems] = createSignal<TabItem[]>([
+  { key: 'home', label: 'Home', closable: false, children: <div>Always here</div> },
+  { key: 'doc', label: 'Document', children: <div>Closable tab</div> },
+]);
+
+<Tab items={items} setItems={setItems} />
+// "Home" tab has no close button and cannot be closed by middle-click
+```
+
+### 9. Disabled tab
+
+```tsx
+const [items, setItems] = createSignal<TabItem[]>([
+  { key: 'a', label: 'Active', children: <div>Active content</div> },
+  { key: 'b', label: 'Disabled', disabled: true, children: <div>Unreachable</div> },
+]);
+
+<Tab items={items} setItems={setItems} />
+// Disabled tab: opacity-50, pointer-events-none, click ignored
+```
+
+### 10. Pin tabs (`canPin`)
+
+```tsx
+<Tab items={items} setItems={setItems} canPin onPin={(key, pinned) => console.log(key, pinned)} />
+// Hover a tab → pin icon appears
+// Click pin → tab moves to front of header
+// Pinned tabs always preRender (content kept in DOM)
+```
+
+### 11. Rename tabs (`canRename`)
+
+```tsx
+// canRename=true by default
+<Tab items={items} setItems={setItems} onRename={(key, newLabel) => console.log(key, newLabel)} />
+// Double-click a tab label to enter edit mode
+// Enter/blur → save, Escape → cancel
+```
+
+### 12. Preserve tab content (`preRender`)
+
+```tsx
+<Tab
+  items={items}
+  setItems={setItems}
+  preRender={true}
+  // Tabs that have been visited stay mounted (display:hidden when inactive)
+  // Use for stateful content like forms, scroll positions, etc.
+/>
+```
+
+### 13. Lazy content with deferred init
+
+```tsx
+const [items, setItems] = createSignal<TabItem[]>([
+  {
+    key: 'expensive',
+    label: 'Report',
+    // Pass as function to defer evaluation until tab is first activated
+    children: () => <ExpensiveChart />,
+  },
+]);
+
+<Tab items={items} setItems={setItems} preRender={false} />
+// children() only evaluated when tab first becomes active
+```
+
+### 14. Start at a specific tab
+
+```tsx
+<Tab items={items} setItems={setItems} defaultActiveKey="settings" />
+// Opens on the tab with key='settings'
+```
+
+### 15. Tabs with external control (add/remove from outside)
+
+```tsx
+const [items, setItems] = createSignal<TabItem[]>([...]);
+
+// Add from outside:
+const addTab = () => setItems(prev => [...prev, { key: createUniqueId(), label: 'New', children: <div/> }]);
+
+// Remove from outside:
+const removeTab = (key: string) => setItems(prev => prev.filter(i => i.key !== key));
+
+<Tab items={items} setItems={setItems} />
+```
+
+### 16. Alignment
+
+```tsx
+<Tab items={items} setItems={setItems} align="center" />
+<Tab items={items} setItems={setItems} align="right" />
+```
+
+### 17. Custom classes
+
+```tsx
+<Tab
+  items={items}
+  setItems={setItems}
+  class={{
+    root: 'rounded-xl shadow-lg',
+    header: 'bg-base-100 px-2',
+    item: 'text-xs',
+    content: 'p-4 bg-white',
+    addButton: 'border-dashed',
+  }}
+/>
+```
+
+### 18. Full-featured: vertical settings panel
+
+```tsx
+const [items, setItems] = createSignal<TabItem[]>([
+  { key: 'general', label: 'General', icon: <SettingsIcon size={14} />, closable: false, children: <GeneralSettings /> },
+  { key: 'profile', label: 'Profile', icon: <UserIcon size={14} />, closable: false, children: <ProfileSettings /> },
+  { key: 'notif', label: 'Notifications', icon: <BellIcon size={14} />, closable: false, children: <NotifSettings /> },
+]);
+
+<div class="h-[500px]">
+  <Tab
+    items={items}
+    setItems={setItems}
+    tabPlacement="vertical"
+    position="left"
+    variants="border"
+    color="primary"
+    canAdd={false}
+    canPin={false}
+    canRename={false}
+    preRender={true}
+    class={{ root: 'rounded-xl border border-base-300' }}
+  />
+</div>
+```
+
+---
+
+## CSS CLASSES (public API for customization)
+
+| Class | Applied to |
+|---|---|
+| `sui-tab` | Root `<div>` |
+| `sui-tab-horizontal` | Root when `tabPlacement='horizontal'` |
+| `sui-tab-vertical` | Root when `tabPlacement='vertical'` |
+| `sui-tab-box` | Root when `variants='box'` |
+| `sui-tab-border` | Root when `variants='border'` |
+| `sui-tab-lift` | Root when `variants='lift'` |
+| `sui-tab-top` | Root when `position='top'` |
+| `sui-tab-bottom` | Root when `position='bottom'` |
+| `sui-tab-left` | Root when `position='left'` |
+| `sui-tab-right` | Root when `position='right'` |
+| `sui-tab-header` | Header `<div>` containing tab items |
+| `sui-align-left/center/right` | Header alignment modifier |
+| `sui-tab-item` | Individual tab `<div>` |
+| `sui-tab-active` | Active tab item |
+| `sui-tab-pinned` | Pinned tab item |
+| `sui-tab-item-icon` | Icon wrapper `<span>` |
+| `sui-tab-item-label` | Label `<span>` (truncated, max-w-40) |
+| `sui-tab-actions` | Pin + close buttons wrapper (opacity-0, shown on hover/active) |
+| `sui-tab-action-btn` | Each action button |
+| `sui-action-pin` | Pin button |
+| `sui-action-close` | Close button (red on hover) |
+| `sui-tab-add-btn` | Add `+` button |
+| `sui-tab-separator` | Divider between pinned and unpinned groups |
+| `sui-tab-content` | Content area `<div>` |
+| `sui-tab-content-panel` | Per-tab panel `<div>` (`hidden` class when inactive) |
+| `sui-tab-rename-input` | Inline rename `<input>` |
+| `sui-tab-empty` | Empty state `<div>` when `items.length === 0` |
+
+Use `class={{ root, header, item, content, addButton }}` prop to append custom classes.
+
+---
+
+## CONSTRAINTS & EDGE CASES
+
+- `items` and `setItems` are **both required**. The component directly calls `setItems` for add, remove, pin, and rename — passing a readonly array is not safe.
+- `activeKey` is **not externally controllable** after mount. Use `defaultActiveKey` for initial tab, then rely on `onChange` to observe changes.
+- If `items()` changes such that `activeKey` no longer matches any item, active key silently resets to `items()[0].key`. Guard against this when removing tabs programmatically from outside.
+- `preRender=false` + tab with stateful content (forms, scroll position): state resets on each activation. Use `preRender=true` or set `pinned=true` to preserve state.
+- Pinned tabs **always** use `preRender=true` logic — their panel is never unmounted once first rendered, regardless of the global `preRender` prop.
+- `onAdd` returning `void` does NOT add any tab. The component only calls `setItems` if `onAdd()` returns a `TabItem` object. If `onAdd` is undefined, the component creates a default tab.
+- `onRemove` returning `false` (or resolving `false`) aborts removal. `void` / `undefined` / `true` all allow removal to proceed.
+- `canRename=true` only applies if the tab is not disabled. Disabled tabs cannot be renamed.
+- The rename input auto-focuses using `setTimeout(..., 0)`. If your environment blocks `setTimeout`, auto-focus will not work.
+- `children` rendered as `{item.children as Element}` — pass static JSX or a function `() => JSX.Element`. Functions are called during SolidJS's fine-grained rendering; heavy computations should be wrapped in `createMemo` inside the children.
+- Vertical header has `max-w-60 min-w-40` and `overflow-y-auto` — tab label text is truncated at `max-w-40` (`sui-tab-item-label`). Long labels will be clipped.
+- The component renders `size-full` (100% width and height) — always wrap in a container with explicit dimensions.
+- `tabPlacement='vertical'` with `position='top'` or `'bottom'` is silently corrected to `'left'`. Similarly `tabPlacement='horizontal'` with `position='left'` or `'right'` → corrected to `'top'`.
+
+---
+
+## DO / DON'T
+
+**DO**
+- Always create `[items, setItems] = createSignal<TabItem[]>([...])` and pass both to `Tab`.
+- Use unique, stable `key` values for each `TabItem` — keys are used for DOM identity, active tracking, and rendered-tabs set.
+- Pass `children` as `() => <JSX>` (function) for expensive content to defer evaluation until first activation.
+- Set `closable: false` on tabs that must always remain open (e.g., home, main dashboard).
+- Set `preRender={true}` when tab content is stateful (forms, scroll positions, editors).
+- Wrap the `<Tab>` in a container with explicit `height` — it uses `h-full` internally.
+- Use `defaultActiveKey` to set the initial active tab instead of relying on array order.
+- Import from the barrel: `import { Tab } from 'solid-tom-ui'`.
+
+**DON'T**
+- Don't try to control `activeKey` externally — the component manages it internally. Use `onChange` to observe it.
+- Don't mutate `items` array directly — always use `setItems`. Direct mutation bypasses SolidJS reactivity.
+- Don't use `tabPlacement='vertical'` with `position='top'/'bottom'` — position is silently corrected to `'left'`.
+- Don't omit `setItems` — the component writes to it on add, remove, pin, and rename operations.
+- Don't pass `children` as a memoized constant outside signals if it contains reactive values — use `() => <JSX>` form to keep reactivity intact.
+- Don't import `TabExamples` (from `tab.example.tsx`) in production — it is a demo component only (not exported from `solid-tom-ui`).
+- Don't rely on `label` for identity — always use `key`. Labels can be renamed; keys are stable identifiers.
+---
+
+## Component Conventions
+
+> **CSS encoding**: internal CSS classes use short encoded names (e.g. `tb01`, `tb02`) per project convention.

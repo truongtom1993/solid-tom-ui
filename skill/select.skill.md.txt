@@ -1,0 +1,663 @@
+## COMPONENT IDENTITY
+- **Import**: `import { Select } from 'solid-tom-ui';`
+- **Exports**: `Select` (named export), `SelectProps`, `SelectOptionType`, `OptGroupType`, `SelectValue`, `SelectFieldNames`, `SelectMethods`, `ShowSearchConfig`, `LabeledValue`, `LabelInValueType`, `FlattenOptionData`, `TagRenderProps` (type exports)
+- **Framework**: SolidJS
+- **Purpose**: Feature-rich select/dropdown input — supports single/multi select, search, grouped options, tags, and controlled/uncontrolled modes
+
+---
+
+## PROP REFERENCE
+
+### Core props (SelectBaseProps)
+
+| Prop                       | Type                                                                 | Default       | Description                                                                                                          |
+| -------------------------- | -------------------------------------------------------------------- | ------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `options`                  | `(SelectOptionType \| OptGroupType)[]`                               | —             | List of options or option groups                                                                                     |
+| `value`                    | `SelectValue`                                                        | —             | Controlled value. Must update via `onChange`.                                                                        |
+| `defaultValue`             | `SelectValue`                                                        | —             | Initial value for uncontrolled mode.                                                                                 |
+| `mode`                     | `'single' \| 'multiple'`                                             | `'single'`    | Select mode. `'multiple'` enables multi-select.                                                                      |
+| `placeholder`              | `string`                                                             | `'Select...'` | Placeholder text when no value is selected.                                                                          |
+| `disabled`                 | `boolean`                                                            | `false`       | Disable all interactions.                                                                                            |
+| `loading`                  | `boolean`                                                            | `false`       | Show loading spinner instead of arrow icon.                                                                          |
+| `open`                     | `boolean`                                                            | —             | Controlled dropdown open state.                                                                                      |
+| `defaultOpen`              | `boolean`                                                            | `false`       | Initial dropdown open state (uncontrolled).                                                                          |
+| `size`                     | `'sm' \| 'md' \| 'lg'`                                               | `'md'`        | Visual size variant.                                                                                                 |
+| `variant`                  | `'outline' \| 'filled' \| 'borderless' \| 'underlined'`              | `'outline'`   | Border/fill style variant.                                                                                           |
+| `color`                    | `BaseColorProps`                                                     | `'error'`     | Theme color token (affects input border, dropdown highlights).                                                       |
+| `placement`                | `'top' \| 'bottom'`                                                  | `'bottom'`    | Dropdown placement direction.                                                                                        |
+| `allowClear`               | `boolean \| { clearIcon?: SolidComponent }`                          | —             | Show clear button when value is selected.                                                                            |
+| `showSearch`               | `boolean \| ShowSearchConfig`                                        | auto          | Enable search input in dropdown. Auto-enabled when `mode='multiple'`.                                                |
+| `virtual`                  | `boolean`                                                            | `false`       | Enable virtual scrolling for large option lists.                                                                     |
+| `listHeight`               | `number`                                                             | `256`         | Max height of dropdown list in pixels.                                                                               |
+| `fieldNames`               | `SelectFieldNames`                                                   | —             | Custom field name mapping for option objects (see below).                                                            |
+| `labelInValue`             | `boolean`                                                            | `false`       | When `true`, `onChange` receives `LabeledValue` objects instead of raw values.                                       |
+| `notFoundContent`          | `SolidComponent`                                                     | `'Not Found'` | Content shown when no options match search.                                                                          |
+| `defaultActiveFirstOption` | `boolean`                                                            | `false`       | Auto-activate first option when dropdown opens.                                                                      |
+| `prefix`                   | `SolidComponent`                                                     | —             | Icon/element rendered before the selector.                                                                           |
+| `suffixIcon`               | `SolidComponent`                                                     | —             | Custom dropdown arrow icon.                                                                                          |
+| `removeIcon`               | `SolidComponent`                                                     | —             | Custom remove icon for tags (multiple mode).                                                                         |
+| `popupRender`              | `(originNode: JSXElement) => JSXElement`                             | —             | Wrap/augment dropdown content.                                                                                       |
+| `optionRender`             | `(option: FlattenOptionData, info: { index: number }) => JSXElement` | —             | Custom render for each option item.                                                                                  |
+| `labelRender`              | `(props: LabelInValueType) => JSXElement`                            | —             | Custom render for the selected label in trigger.                                                                     |
+| `class`                    | `Partial<Record<'root' \| 'popup', string>>`                         | —             | Custom class for root element and popup.                                                                             |
+### Single-mode-only props (mode='single' or omitted)
+
+| Prop           | Type                               | Description              |
+| -------------- | ---------------------------------- | ------------------------ |
+| `value`        | `string \| number \| LabeledValue` | Controlled single value. |
+| `defaultValue` | `string \| number \| LabeledValue` | Initial single value.    |
+
+### Multiple-mode-only props (mode='multiple')
+
+| Prop                   | Type                                                              | Default        | Description                                              |
+| ---------------------- | ----------------------------------------------------------------- | -------------- | -------------------------------------------------------- |
+| `value`                | `string[] \| number[] \| LabeledValue[]`                          | —              | Controlled array of selected values.                     |
+| `defaultValue`         | `string[] \| number[] \| LabeledValue[]`                          | —              | Initial array of selected values.                        |
+| `allowCustomValue`     | `boolean`                                                         | `false`        | Allow typing and selecting values not in `options` list. |
+| `maxCount`             | `number`                                                          | —              | Maximum number of selectable items.                      |
+| `maxTagCount`          | `number`                                                          | —              | Max visible tags; excess shown in `+N more...` tooltip.  |
+| `maxTagPlaceholder`    | `SolidComponent \| ((omitted: LabeledValue[]) => SolidComponent)` | `'+N more...'` | Custom content for omitted tags badge.                   |
+| `maxTagTextLength`     | `number`                                                          | —              | Truncate tag labels to this character length.            |
+| `tagRender`            | `(props: TagRenderProps) => JSXElement`                           | —              | Custom render for each selected tag in trigger.          |
+| `menuItemSelectedIcon` | `SolidComponent`                                                  | checkmark icon | Custom icon shown on selected options in dropdown.       |
+
+### Event props
+
+| Prop             | Type                                                                           | Description                                         |
+| ---------------- | ------------------------------------------------------------------------------ | --------------------------------------------------- |
+| `onChange`       | `(value: SelectValue, option: SelectOptionType \| SelectOptionType[]) => void` | Fires on selection change.                          |
+| `onSelect`       | `(value: string \| number \| LabeledValue, option: SelectOptionType) => void`  | Fires when an item is selected (not deselected).    |
+| `onDeselect`     | `(value: string \| number \| LabeledValue) => void`                            | Fires when an item is deselected (multiple mode).   |
+| `onClear`        | `() => void`                                                                   | Fires when clear button is clicked.                 |
+| `onOpenChange`   | `(open: boolean) => void`                                                      | Fires when dropdown opens or closes.                |
+| `onFocus`        | `(event: FocusEvent) => void`                                                  | Fires on focus.                                     |
+| `onBlur`         | `(event: FocusEvent) => void`                                                  | Fires on blur.                                      |
+| `onActive`       | `(value: string \| number \| LabeledValue) => void`                            | Fires when keyboard navigation activates an option. |
+| `onInputKeyDown` | `(event: KeyboardEvent) => void`                                               | Fires on keydown in the trigger/search input.       |
+
+---
+
+## TYPE REFERENCE
+
+### `SelectOptionType`
+
+```ts
+interface SelectOptionType {
+  label?: SolidComponent; // display text or JSX
+  value?: string | number; // option value (used internally)
+  disabled?: boolean; // disable individual option
+  class?: string; // extra CSS class on option element
+  title?: string; // HTML title attribute on option element
+}
+```
+
+### `OptGroupType` (grouped options)
+
+```ts
+interface OptGroupType {
+  key?: string;
+  label?: SolidComponent; // group header label
+  options?: SelectOptionType[]; // child options in the group
+  class?: string;
+  title?: string;
+}
+```
+
+### `SelectFieldNames` (custom field mapping)
+
+```ts
+interface SelectFieldNames {
+  label?: string; // default: 'label'
+  value?: string; // default: 'value'
+  options?: string; // default: 'options' (for group children)
+  groupLabel?: string; // default: 'label' (for group header)
+}
+```
+
+### `ShowSearchConfig`
+
+```ts
+interface ShowSearchConfig {
+  autoClearSearchValue?: boolean; // clear search on select (default: true)
+  filterOption?: boolean | ((inputValue: string, option: SelectOptionType) => boolean);
+  filterSort?: (
+    optA: SelectOptionType,
+    optB: SelectOptionType,
+    info: { searchValue: string },
+  ) => number;
+  optionFilterProp?: string | string[]; // field(s) to filter on (default: 'value')
+  searchValue?: string; // controlled search input value
+  onSearch?: (value: string) => void; // fires on search input change
+}
+```
+
+### `TagRenderProps`
+
+```ts
+interface TagRenderProps {
+  label: SolidComponent;
+  value: string | number;
+  closable: boolean;
+  onClose: () => void;
+}
+```
+
+### `LabeledValue`
+
+```ts
+interface LabeledValue {
+  value: string | number;
+  label: SolidComponent;
+  key?: string;
+}
+```
+
+---
+
+## BEHAVIORAL RULES
+
+### Controlled vs Uncontrolled
+
+- **Uncontrolled**: omit `value`. Internal signal manages state. Use `defaultValue` for initial state.
+- **Controlled**: supply `value`. Component reads it reactively. **You must update the signal yourself in `onChange`**; the component will not auto-sync.
+
+### Search behavior
+
+- `showSearch={true}` → enables search input with default `filterOption` (matches against `value` field, case-insensitive).
+- `showSearch={object}` → passes `ShowSearchConfig` for full control.
+- In `mode='multiple'`, search is auto-enabled (no need to explicitly set `showSearch`).
+- `autoClearSearchValue` (default `true`) clears search text after each selection.
+
+### Filtering logic
+
+```
+if filterOption === false → show all options (server-side filtering)
+if filterOption is function → use custom filter function
+else → filter by optionFilterProp fields, lowercase includes match
+```
+
+### Option flattening & groups
+
+- `OptGroupType` entries (those with an `options` array) are flattened internally.
+- Groups are rendered with a group label header followed by their options.
+- During search, grouping is collapsed and all matching items are shown in a flat list.
+
+### Virtual scroll
+
+- `virtual={true}` activates `@tanstack/solid-virtual` for efficient rendering of large lists.
+- Recommended for option lists > 500 items.
+- Item height defaults: options = 32px, group labels = 28px. Heights are **fixed** — variable-height options will misalign.
+
+### Multiple mode — tag overflow
+
+- `maxTagCount={N}` → shows first N tags; remaining are hidden behind a `+N more...` badge.
+- Hovering the badge reveals a tooltip showing all hidden tags with close buttons.
+- `maxTagPlaceholder` overrides the badge content.
+
+### Keyboard navigation
+
+| Key         | Behavior                                            |
+| ----------- | --------------------------------------------------- |
+| `ArrowDown` | Open dropdown / move active option down             |
+| `ArrowUp`   | Open dropdown / move active option up               |
+| `Enter`     | Select active option (or open dropdown)             |
+| `Space`     | Open dropdown (ignored if search input is focused)  |
+| `Escape`    | Close dropdown, return focus to trigger             |
+| `Backspace` | In multiple mode with empty search: remove last tag |
+| `Tab`       | Close dropdown                                      |
+
+### `allowCustomValue` (multiple mode only)
+
+- Allows user to type arbitrary values not in `options`.
+- Press `Enter` when no option is active to add the current search text as a tag.
+- Custom values are stored internally and appear as synthetic `FlatOption` entries.
+
+---
+
+## USAGE PATTERNS
+
+### 1. Basic single select (uncontrolled)
+
+```tsx
+import { Select } from 'solid-tom-ui';
+
+const options = [
+  { label: 'Option 1', value: '1' },
+  { label: 'Option 2', value: '2' },
+  { label: 'Option 3', value: '3', disabled: true },
+];
+
+<Select options={options} placeholder="Select one..." />;
+```
+
+### 2. Controlled single select
+
+```tsx
+const [value, setValue] = createSignal<string>('1');
+
+<Select options={options} value={value()} onChange={val => setValue(val as string)} />;
+```
+
+### 3. Multiple select (uncontrolled)
+
+```tsx
+<Select
+  mode="multiple"
+  options={options}
+  placeholder="Select multiple..."
+  allowClear
+  onChange={val => console.log(val)}
+/>
+```
+
+### 4. Controlled multiple select
+
+```tsx
+const [values, setValues] = createSignal<string[]>(['1', '2']);
+
+<Select
+  mode="multiple"
+  options={options}
+  value={values()}
+  onChange={val => setValues(val as string[])}
+  allowClear
+/>;
+```
+
+### 5. Single select with search
+
+```tsx
+<Select
+  options={largeOptions}
+  showSearch={{
+    filterOption: (input, option) =>
+      String(option?.label).toLowerCase().includes(input.toLowerCase()),
+    optionFilterProp: 'label',
+  }}
+  placeholder="Search to select..."
+/>
+```
+
+### 6. Option groups
+
+```tsx
+const groupedOptions = [
+  {
+    label: 'Managers',
+    options: [
+      { label: 'Alice', value: 'alice' },
+      { label: 'Bob', value: 'bob' },
+    ],
+  },
+  {
+    label: 'Engineers',
+    options: [
+      { label: 'Carol', value: 'carol' },
+      { label: 'Dave', value: 'dave' },
+    ],
+  },
+];
+
+<Select options={groupedOptions} placeholder="Select a person..." />;
+```
+
+### 7. Custom field names (non-standard option shape)
+
+```tsx
+const countryOptions = [
+  { name: 'Vietnam', id: 'vn' },
+  { name: 'Japan', id: 'jp' },
+];
+
+<Select
+  options={countryOptions as any}
+  fieldNames={{ label: 'name', value: 'id' }}
+  placeholder="Select country..."
+/>;
+```
+
+### 8. Label in value
+
+```tsx
+<Select
+  labelInValue
+  defaultValue={{ value: '1', label: 'Option 1' }}
+  options={options}
+  onChange={val => {
+    const { value, label } = val as LabeledValue;
+    console.log(value, label);
+  }}
+/>
+```
+
+### 9. Virtual scroll (large option lists)
+
+```tsx
+const manyOptions = Array.from({ length: 10000 }, (_, i) => ({
+  label: `Option ${i + 1}`,
+  value: `opt-${i + 1}`,
+}));
+
+<Select
+  options={manyOptions}
+  showSearch
+  virtual
+  listHeight={256}
+  placeholder="Search 10,000 items..."
+/>;
+```
+
+### 10. Max selections (multiple mode)
+
+```tsx
+<Select mode="multiple" options={options} maxCount={3} placeholder="Select up to 3..." />
+```
+
+### 11. Max tag count with custom placeholder
+
+```tsx
+<Select
+  mode="multiple"
+  options={colorOptions}
+  defaultValue={['red', 'green', 'blue', 'yellow']}
+  maxTagCount={2}
+  maxTagPlaceholder={omitted => `and ${omitted.length} more...`}
+/>
+```
+
+### 12. Allow custom values (free tagging)
+
+```tsx
+<Select
+  mode="multiple"
+  allowCustomValue
+  options={langOptions}
+  placeholder="Type or select tags..."
+/>
+```
+
+### 13. Custom option render
+
+```tsx
+<Select
+  options={options}
+  optionRender={(option, { index }) => (
+    <div class="flex items-center gap-2">
+      <span class="text-xs font-bold">{index + 1}.</span>
+      <span>{option.label as string}</span>
+    </div>
+  )}
+/>
+```
+
+### 14. Custom tag render (multiple mode)
+
+```tsx
+<Select
+  mode="multiple"
+  options={options}
+  tagRender={props => (
+    <span class="badge badge-primary gap-1">
+      {props.label as string}
+      {props.closable && (
+        <span onClick={props.onClose} class="cursor-pointer">
+          &times;
+        </span>
+      )}
+    </span>
+  )}
+/>
+```
+
+### 15. Custom label render (selected value in trigger)
+
+```tsx
+<Select
+  options={langOptions}
+  labelRender={props => (
+    <span class="flex items-center gap-1">
+      <span class="text-primary font-mono text-xs">[{props.value}]</span>
+      <span>{props.label as string}</span>
+    </span>
+  )}
+/>
+```
+
+### 16. Popup render (add item footer)
+
+```tsx
+const [opts, setOpts] = createSignal([...baseOptions]);
+const [newName, setNewName] = createSignal('');
+
+<Select
+  options={opts()}
+  popupRender={menu => (
+    <div>
+      {menu}
+      <div class="flex gap-2 border-t p-2" onMouseDown={e => e.stopPropagation()}>
+        <input
+          class="input input-xs flex-1"
+          value={newName()}
+          onInput={e => setNewName(e.currentTarget.value)}
+          onKeyDown={e => {
+            if (e.key === 'Enter' && newName().trim()) {
+              const n = newName().trim();
+              setOpts(prev => [...prev, { label: n, value: n }]);
+              setNewName('');
+            }
+          }}
+          placeholder="New item..."
+        />
+        <button
+          class="btn btn-xs btn-primary"
+          onClick={() => {
+            if (newName().trim()) {
+              const n = newName().trim();
+              setOpts(prev => [...prev, { label: n, value: n }]);
+              setNewName('');
+            }
+          }}
+        >
+          Add
+        </button>
+      </div>
+    </div>
+  )}
+/>;
+```
+
+### 17. Sizes
+
+```tsx
+<Select size="sm" options={options} placeholder="Small" />
+<Select size="md" options={options} placeholder="Medium (default)" />
+<Select size="lg" options={options} placeholder="Large" />
+```
+
+### 18. Variants
+
+```tsx
+<Select variant="outline"     options={options} placeholder="Outline (default)" />
+<Select variant="filled"      options={options} placeholder="Filled" />
+<Select variant="borderless"  options={options} placeholder="Borderless" />
+<Select variant="underlined"  options={options} placeholder="Underlined" />
+```
+
+### 19. Placement (dropdown direction)
+
+```tsx
+<Select options={options} placement="top"    placeholder="Opens upward" />
+<Select options={options} placement="bottom" placeholder="Opens downward (default)" />
+```
+
+### 20. Disabled state
+
+```tsx
+<Select disabled defaultValue="1" options={options} />
+<Select disabled mode="multiple" defaultValue={['1', '2']} options={options} />
+```
+
+### 21. Loading state
+
+```tsx
+<Select loading placeholder="Loading options..." options={[]} />
+```
+
+### 22. Allow clear
+
+```tsx
+<Select allowClear defaultValue="1" options={options} />
+// With custom clear icon:
+<Select allowClear={{ clearIcon: <span>✕</span> }} options={options} />
+```
+
+### 23. Prefix icon
+
+```tsx
+<Select
+  prefix={<DynamicIcon name="search" size={14} />}
+  showSearch
+  options={options}
+  placeholder="Search..."
+/>
+```
+
+### 24. Controlled open state
+
+```tsx
+const [open, setOpen] = createSignal(false);
+
+<Select open={open()} onOpenChange={setOpen} options={options} />;
+```
+
+### 25. Server-side search (disable client filter)
+
+```tsx
+const [searchResults, setSearchResults] = createSignal<SelectOptionType[]>([]);
+
+<Select
+  options={searchResults()}
+  showSearch={{
+    filterOption: false, // disable client-side filtering
+    onSearch: async q => {
+      const results = await fetchOptions(q);
+      setSearchResults(results);
+    },
+  }}
+  placeholder="Search server..."
+/>;
+```
+
+### 26. Max tag text length
+
+```tsx
+<Select
+  mode="multiple"
+  options={options}
+  maxTagTextLength={8}
+  defaultValue={['very-long-label-value']}
+/>
+// Labels longer than 8 chars are truncated: "very-lon..."
+```
+
+---
+
+## CSS CLASSES (public API for customization)
+
+| Class                              | Applied to                            |
+| ---------------------------------- | ------------------------------------- |
+| `sui-select`                       | Root trigger `<div>`                  |
+| `sui-select-outline`               | Variant: outline                      |
+| `sui-select-filled`                | Variant: filled                       |
+| `sui-select-borderless`            | Variant: borderless                   |
+| `sui-select-underlined`            | Variant: underlined                   |
+| `sui-select-sm/md/lg`              | Size modifier                         |
+| `sui-select-focused`               | Root when dropdown is open            |
+| `sui-select-open`                  | Root when dropdown is open            |
+| `sui-select-multiple`              | Root in multiple mode                 |
+| `sui-select-disabled`              | Root when `disabled=true`             |
+| `sui-select-prefix`                | Prefix icon wrapper `<span>`          |
+| `sui-select-selector`              | Inner selector container              |
+| `sui-select-selection-single`      | Single-mode value display             |
+| `sui-select-selection-item`        | Selected label in single mode         |
+| `sui-select-placeholder`           | Placeholder `<span>`                  |
+| `sui-select-selection-multiple`    | Multiple-mode tags container          |
+| `sui-select-tag`                   | Each tag in multiple mode             |
+| `sui-select-tag-content`           | Tag label text                        |
+| `sui-select-tag-remove`            | Tag remove button                     |
+| `sui-select-tag-omitted`           | The `+N more...` badge                |
+| `sui-select-suffix`                | Suffix area (clear + arrow)           |
+| `sui-select-clear`                 | Clear button `<span>`                 |
+| `sui-select-arrow`                 | Dropdown arrow icon                   |
+| `sui-select-arrow-open`            | Arrow when dropdown is open (rotated) |
+| `sui-select-option-list`           | Dropdown options container            |
+| `sui-select-option`                | Each option item                      |
+| `sui-select-option-selected`       | Selected option                       |
+| `sui-select-option-active`         | Keyboard-active option                |
+| `sui-select-option-disabled`       | Disabled option                       |
+| `sui-select-option-grouped`        | Option inside a group                 |
+| `sui-select-option-content`        | Option label wrapper                  |
+| `sui-select-option-state`          | Checkmark icon wrapper                |
+| `sui-select-option-group-label`    | Group header `<div>`                  |
+| `sui-select-dropdown-search-input` | Search `<input>` in dropdown          |
+| `sui-select-empty`                 | Empty/not-found state `<div>`         |
+
+To add custom class to root or popup: `class={{ root: 'my-root', popup: 'my-popup' }}`.
+
+---
+
+## ANIMATION
+
+- **Tags (multiple mode)**:
+  - Enter: slide from right (`translateX(100% → 0)`, opacity 0→1, 300ms ease-out).
+  - Exit: scale-out from left origin (`scale(1→0)`, 300ms ease-in).
+  - Implemented via `solid-transition-group` `<TransitionGroup>` using Web Animations API.
+
+---
+
+## CONSTRAINTS & EDGE CASES
+
+- In **controlled mode**, `value` must always be updated via `onChange`. The component does not force-sync controlled values into internal state.
+- `mode='multiple'` enables search automatically — no need to set `showSearch` explicitly.
+- `allowCustomValue` only works with `mode='multiple'`. It is `never` typed in single mode.
+- `maxCount`, `maxTagCount`, `tagRender`, `menuItemSelectedIcon` are `never` in single mode — TypeScript will error.
+- `fieldNames.options` must point to the array field for grouped options. Defaults to `'options'`.
+- When `virtual={true}` is active, option heights are fixed (option: 32px, group label: 28px). Variable-height options will overflow or appear misaligned.
+- `showSearch` as `object` enables search regardless of mode. Only `showSearch={false}` explicitly disables it.
+- `autoClearSearchValue` defaults to `true` — search clears after each selection in multiple mode. Set to `false` in `showSearch` config to retain search text.
+- `popupRender` wraps the entire dropdown content. Use `onMouseDown={e => e.stopPropagation()}` on custom footer elements to prevent dropdown from closing.
+- The dropdown closes on outside click via blur event on `selectRootRef`. Elements outside will trigger close.
+- `placement='top'` requires sufficient space above the trigger; no auto-flip logic is built in.
+- `defaultActiveFirstOption` auto-focuses the first non-disabled option when dropdown opens or search text changes.
+- `usePortal=true` renders the dropdown via a portal. Combine with `blockScroll=false` if the trigger is inside a scrollable container and the dropdown must stay aligned while scrolling.
+
+---
+
+## DO / DON'T
+
+**DO**
+
+- Import from barrel: `import { Select } from 'solid-tom-ui'`.
+- Use `value` + `onChange` together for controlled usage.
+- Use `class={{ root: '...', popup: '...' }}` (object shape) to extend styles.
+- Set `virtual={true}` for lists with 500+ options.
+- Set `onMouseDown={e => e.stopPropagation()}` on interactive elements inside `popupRender` footer to prevent premature close.
+- Use `fieldNames` when options come from an API with non-standard field names.
+- Use `showSearch={{ filterOption: false, onSearch }}` for server-side search.
+
+**DON'T**
+
+- Don't pass `maxCount`, `tagRender`, `allowCustomValue` without `mode='multiple'` — TypeScript will error.
+- Don't use `virtual={true}` if you have variable-height options or complex JSX option renders requiring dynamic heights.
+- Don't rely on `autoClearSearchValue` behavior being stable with controlled `showSearch.searchValue` — manage search state yourself when using `searchValue`.
+- Don't mix `labelInValue={true}` with raw string values — `onChange` will receive `LabeledValue` objects.
+- Don't import `SelectExample` in production — it's a demo component only.
+- Don't set `placement` expecting auto-flip — choose the direction that always has available space.
+- Don't write `variant="outlined"` (with "d") — the correct value is `"outline"`.
+---
+
+## Component Conventions
+
+> **CSS encoding**: internal CSS classes use short encoded names (e.g. `sl01`, `sl02`) per project convention.
+
+> **Unique IDs**: if this component needs to generate HTML `id` attributes, always use `createUniqueId()` from `solid-js` — never `Math.random()` or `Date.now()`.

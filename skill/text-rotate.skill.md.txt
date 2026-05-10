@@ -1,0 +1,186 @@
+## COMPONENT IDENTITY
+- **Import**: `import { TextRotate } from 'solid-tom-ui';`
+- **Export**: `TextRotate` (named export)
+- **Framework**: SolidJS
+- **Purpose**: Pure-CSS animated text rotator — cycles through words/JSX elements driven by CSS `linear()` easing; zero JS timers; hover pauses animation
+
+## Props
+
+| Prop    | Type                                | Default | Description                                                                                                         |
+| ------- | ----------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------- |
+| `items` | `(string \| (() => JSX.Element))[]` | —       | **Required.** List of text strings or render functions. Min: 2, Max: **6**                                          |
+| `class` | `{ root?: string; item?: string }`  | —       | Class overrides. `root` targets the outer `<span>`; `item` targets each string `<span>` (not render-function items) |
+
+## Class Slots
+
+`TextRotate` uses a slot object `{ root?, item? }` (equivalent to `Partial<Record<'root' | 'item', string>>`):
+- `root` — outer `<span class="text-rotate ...">` wrapper
+- `item` — each string item's inner `<span>` (not applied to render-function items)
+
+> **CSS encoding**: internal CSS classes use short encoded names (e.g. `tr01`, `tr02`) per project convention.
+
+### Item types
+
+Each element in `items` can be:
+
+- **`string`** — wrapped in `<span class={class.item}>`. Applies `class.item` if provided.
+- **`() => JSX.Element`** — called directly and rendered as-is. `class.item` is **not** applied to render-function items; style them inside the function itself.
+
+## Hard Limits
+
+| Condition                     | Behavior                                  |
+| ----------------------------- | ----------------------------------------- |
+| `items` is empty or undefined | Returns `<>` (empty), logs `console.warn` |
+| `items.length > 6`            | Returns `<>` (empty), logs `console.warn` |
+
+Always pass **2–6 items**.
+
+## Usage Examples
+
+### Basic — strings
+
+```tsx
+<p class="text-2xl font-bold">
+  I{' '}
+  <TextRotate
+    items={['love', 'enjoy', 'build with']}
+    class={{ root: 'text-rotate text-primary' }}
+  />{' '}
+  SolidJS
+</p>
+```
+
+### Inline within text
+
+`TextRotate` renders as an inline `<span>` — use it freely inside a sentence:
+
+```tsx
+<h1 class="text-4xl font-bold">
+  Build{' '}
+  <TextRotate items={['faster', 'better', 'smarter']} class={{ root: 'text-rotate text-accent' }} />{' '}
+  with SolidJS
+</h1>
+```
+
+### Render functions — arbitrary JSX
+
+When items need custom styling, badges, icons, or complex markup, use render functions:
+
+```tsx
+<TextRotate
+  items={[
+    () => <span class="badge badge-success font-bold">Online ✅</span>,
+    () => <span class="badge badge-error font-bold">Offline 🔴</span>,
+    () => <span class="badge badge-warning font-bold">Away 🟡</span>,
+  ]}
+/>
+```
+
+### Mixed strings and render functions
+
+```tsx
+<TextRotate
+  items={[
+    'Vite ⚡',
+    () => <span class="text-success font-mono">TypeScript</span>,
+    'Tailwind 🎨',
+    () => <span class="text-secondary italic">DaisyUI</span>,
+  ]}
+  class={{ root: 'text-rotate' }}
+/>
+```
+
+### Custom item class (strings only)
+
+`class.item` applies to the wrapping `<span>` of each **string** item:
+
+```tsx
+<TextRotate
+  items={['Creative', 'Efficient', 'Simple']}
+  class={{
+    root: 'text-rotate text-info',
+    item: 'font-mono uppercase',
+  }}
+/>
+```
+
+### Controlling animation speed
+
+The animation duration is driven by the `--duration` CSS custom property, which reads from Tailwind's `--tw-duration`. Override it with Tailwind's `duration-*` utility on the `root` element:
+
+```tsx
+{
+  /* Slow: 20s per full cycle */
+}
+<TextRotate items={['fast', 'slow', 'smooth']} class={{ root: 'text-rotate duration-20000' }} />;
+
+{
+  /* Fast: 4s per full cycle */
+}
+<TextRotate items={['fast', 'slow', 'smooth']} class={{ root: 'text-rotate duration-4000ms' }} />;
+```
+
+Default duration when not set: `10s`.
+
+### Hero heading
+
+```tsx
+<h1 class="text-5xl font-extrabold">
+  We build{' '}
+  <TextRotate
+    items={[
+      () => <span class="text-primary">faster</span>,
+      () => <span class="text-secondary">better</span>,
+      () => <span class="text-accent">smarter</span>,
+    ]}
+  />{' '}
+  products
+</h1>
+```
+
+## How the Animation Works
+
+The CSS class `text-rotate` (from `text-rotate.daisy.css`) does the following:
+
+1. **Container** (`<span class="text-rotate">`):
+   - `display: inline-block; height: 1lh; overflow: hidden` — crops to exactly one line-height.
+   - `vertical-align: bottom` — aligns cleanly inside surrounding text.
+
+2. **Inner grid** (the inner `<span>` wrapper):
+   - `display: grid; height: calc(N * 100%)` — stacks all `N` items vertically.
+   - Each item gets `align-content: baseline` and `clip-path: inset(0.5px 0 0.5px 0)` to clip half-pixels between items.
+
+3. **Animation**:
+   - CSS `:has(*:nth-child(N))` selectors auto-detect item count (2–6) and apply the matching `rotator` keyframe.
+   - The `linear()` easing function creates discrete hold phases at each step position, then snaps to the next — giving the appearance of a pause-then-flip rather than a smooth scroll.
+   - A single `animation: rotator 10s linear(...) infinite` drives the whole thing.
+
+4. **Hover pause**:
+   - `.text-rotate:hover > * { animation-play-state: paused }` — hover on the component pauses the cycle.
+
+## Rendered HTML Structure
+
+```html
+<span class="text-rotate [root class]">
+  <span>
+    <!-- inner grid, height = N × 100% -->
+    <span class="[item class]">Item 1</span>
+    <!-- string item -->
+    <span class="[item class]">Item 2</span>
+    <!-- OR: raw JSX from render function, no wrapping span -->
+  </span>
+</span>
+```
+
+## Common Mistakes
+
+| Mistake                                                        | Fix                                                                                                                                                                      |
+| -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Passing `items.length > 6`                                     | Component silently returns empty — keep items ≤ 6                                                                                                                        |
+| Passing 0 or 1 items                                           | Minimum 2 items required                                                                                                                                                 |
+| Applying `class.item` expecting it to work on render functions | `class.item` only applies to string items. Style render-function items inline                                                                                            |
+| Forgetting `text-rotate` in `class.root`                       | The `text-rotate` CSS class is what enables the animation. Without it, items render stacked but don't animate. Pass `class={{ root: 'text-rotate ...' }}`                |
+| Expecting the component to accept `duration` as a prop         | Duration is CSS-driven: add `duration-[Xms]` Tailwind utility to `class.root`                                                                                            |
+| Using `TextRotate` outside inline text context                 | It renders as `inline-block` with `height: 1lh` — works in paragraph and heading text. Avoid placing it in a `flex` container row where `1lh` might resolve unexpectedly |
+
+> **Unique IDs**: if this component needs to generate HTML `id` attributes, always use `createUniqueId()` from `solid-js` — never `Math.random()` or `Date.now()`.

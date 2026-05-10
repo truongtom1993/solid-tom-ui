@@ -1,0 +1,167 @@
+## COMPONENT IDENTITY
+- **Import**: `import { Rating } from 'solid-tom-ui';`
+- **Export**: `Rating` (named export), `RatingProps`, `RatingSize`, `RatingMask` (type exports)
+- **Framework**: SolidJS
+- **Purpose**: Star/heart rating component built on DaisyUI's `mask` utility; supports controlled and uncontrolled modes, half-star steps, multiple shapes, and read-only display
+
+## Props
+
+| Prop           | Type                              | Default      | Description                                                              |
+| -------------- | --------------------------------- | ------------ | ------------------------------------------------------------------------ |
+| `value`        | `number`                          | —            | Controlled value. When set, component is in controlled mode              |
+| `defaultValue` | `number`                          | —            | Initial value for uncontrolled mode                                      |
+| `count`        | `number`                          | `5`          | Total number of items                                                    |
+| `color`        | `BaseColorProps \| string`        | *(per mask)* | Item color. Accepts a `BaseColorProps` token or a Tailwind `bg-*` class  |
+| `size`         | `'xs' \| 'sm' \| 'md' \| 'lg' \| 'xl'` | `'md'` | Size of each item                                               |
+| `mask`         | `'star' \| 'star-2' \| 'heart'`  | `'star-2'`   | Shape of each item                                                       |
+| `readOnly`     | `boolean`                         | `false`      | Disables interaction; renders `<div>` elements instead of `<input>`      |
+| `half`         | `boolean`                         | `false`      | Enables half-step increments (0.5, 1.0, 1.5 …)                          |
+| `allowClear`   | `boolean`                         | `true`       | Adds a hidden reset input; clicking the selected item resets to 0        |
+| `gap`          | `boolean`                         | *(per mask)* | Adds `gap-1` between items. Defaults to `true` for `heart`, `false` for stars |
+| `onChange`     | `(value: number) => void`         | —            | Called when the user selects a value                                     |
+| `class`        | `string`                          | —            | Extra class on the wrapper `<div>`                                       |
+| `ariaLabel`    | `string`                          | —            | Prefix for each item's `aria-label` (e.g. `"Product rating"` → `"Product rating 3 star"`) |
+
+All other `HTMLDivElement` attributes are forwarded to the wrapper (except `onChange`, which is intercepted).
+
+## Class Slots
+
+`Rating` is a single-element component — `class` appends to the root wrapper `<div>`. No named sub-element slots.
+
+> **CSS encoding**: internal CSS classes use short encoded names (e.g. `rt01`, `rt02`) per project convention.
+
+> **Unique IDs**: each `Rating` instance generates a unique `name` attribute for its radio inputs using `createUniqueId()` from `solid-js` — multiple instances on the same page won't interfere.
+
+## Controlled vs Uncontrolled
+
+```tsx
+// Uncontrolled — component manages its own state
+<Rating defaultValue={3} />
+
+// Controlled — you manage state
+const [value, setValue] = createSignal(3);
+<Rating value={value()} onChange={setValue} />
+```
+
+When `value` is provided, the internal signal syncs to it via `createEffect`. When `value` is `undefined`, the component is uncontrolled.
+
+## Default Colors per Mask
+
+When `color` is not specified, each mask has a built-in default color:
+
+| Mask      | Default color      |
+| --------- | ------------------ |
+| `star`    | `bg-yellow-400`    |
+| `star-2`  | `bg-orange-400`    |
+| `heart`   | `bg-red-400`       |
+
+## Examples
+
+### Basic (uncontrolled)
+
+```tsx
+<Rating defaultValue={3} />
+<Rating defaultValue={4} mask="star" />
+<Rating defaultValue={2} mask="heart" />
+```
+
+### Custom count
+
+```tsx
+<Rating count={3} defaultValue={2} />
+<Rating count={7} defaultValue={4} />
+<Rating count={10} defaultValue={6} />
+```
+
+### Sizes
+
+```tsx
+<Rating size="xs" defaultValue={3} />
+<Rating size="sm" defaultValue={3} />
+<Rating size="md" defaultValue={3} />   {/* default */}
+<Rating size="lg" defaultValue={3} />
+<Rating size="xl" defaultValue={3} />
+```
+
+### Custom color
+
+`color` accepts either a `BaseColorProps` token or a Tailwind `bg-*` class:
+
+```tsx
+{/* Tailwind color class */}
+<Rating color="bg-orange-400" defaultValue={4} />
+<Rating color="bg-blue-400" defaultValue={4} />
+
+{/* DaisyUI token */}
+<Rating color="primary" defaultValue={4} />
+<Rating color="success" defaultValue={4} />
+<Rating color="error" defaultValue={4} />
+```
+
+### Half-star mode
+
+When `half={true}`, values step by 0.5. Each item is split into two halves.
+
+```tsx
+<Rating half defaultValue={2.5} color="bg-orange-400" />
+<Rating half defaultValue={3.5} color="bg-yellow-400" size="lg" />
+```
+
+### Read-only
+
+Read-only renders `<div>` elements instead of `<input>` radio buttons — no interactivity, no tab stops.
+
+```tsx
+<Rating readOnly value={3} />
+<Rating readOnly value={4.5} half color="bg-orange-400" size="lg" />
+```
+
+### Allow clear (reset to 0)
+
+When `allowClear={true}` (default), a hidden radio at value 0 is inserted. Re-clicking the currently selected star resets the rating to 0.
+
+```tsx
+<Rating allowClear defaultValue={3} />       {/* can reset */}
+<Rating allowClear={false} defaultValue={3} /> {/* cannot reset */}
+```
+
+### Gap between items
+
+`gap` defaults to `true` for `heart`, `false` for `star`/`star-2`. Override explicitly:
+
+```tsx
+<Rating mask="heart" gap={false} defaultValue={3} />  {/* no gap */}
+<Rating mask="star-2" gap={true} defaultValue={3} />  {/* force gap */}
+```
+
+### Controlled with signal
+
+```tsx
+const [rating, setRating] = createSignal(3);
+
+<Rating value={rating()} onChange={setRating} color="bg-yellow-400" size="lg" />
+<p>Current: {rating()}</p>
+```
+
+## Render Behavior
+
+- **Interactive** (`readOnly=false`): renders `<input type="radio">` elements inside a `<div class="rating ...">`. Each input has `name` scoped to the instance via an auto-incrementing UID.
+- **Read-only** (`readOnly=true`): renders `<div class="mask ...">` elements. No form inputs, no keyboard interaction.
+- **`allowClear`**: inserts an extra hidden `<input class="rating-hidden">` as the first radio at value 0.
+
+## Accessibility
+
+- Each interactive input gets an `aria-label` like `"3 star"` or `"2.5 stars"`.
+- Provide `ariaLabel` to prefix all labels: `ariaLabel="Product rating"` → `"Product rating 3 star"`.
+- Read-only items use `aria-current="true"` on the active item.
+- The component renders as a radio group with a unique `name` per instance.
+
+## Common Mistakes
+
+| Mistake | Fix |
+| --- | --- |
+| Passing a Tailwind color name like `"orange-400"` to `color` | Pass the full class: `color="bg-orange-400"` |
+| Expecting `onChange` to fire in read-only mode | `readOnly` silently blocks all changes — remove `readOnly` |
+| Setting `half` but passing an integer `defaultValue` | Valid — integers work in half mode (e.g., `defaultValue={3}`) |
+| Controlled component not responding to `onChange` | Ensure you update the signal: `onChange={val => setValue(val)}` |
+| `allowClear` not resetting | Works only when re-clicking the already-selected star; `allowClear={false}` disables it |

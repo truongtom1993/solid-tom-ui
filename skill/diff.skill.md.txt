@@ -1,0 +1,244 @@
+## COMPONENT IDENTITY
+- **Import**: `import { Diff } from 'solid-tom-ui';`
+- **Export**: `Diff` (named export)
+- **Framework**: SolidJS
+- **Purpose**: Interactive image/content comparison slider — user drags a resizer to reveal left vs right panels; NOT a `ParentComponent`, content passed via `images` prop array
+
+---
+
+## TYPE SIGNATURE
+
+```ts
+type DiffProps = {
+  images: SolidComponent[]; // REQUIRED — must be exactly 2 elements
+  class?: string; // extra classes on root <figure>
+};
+```
+
+## CLASS SLOTS
+
+`Diff` is a single-element component — the `class` prop targets the root `<figure>` only. There are no named slots.
+
+> **CSS encoding**: internal CSS classes follow the project convention using short encoded names (e.g. `df01`, `df02`). Do not reference DaisyUI's `diff-item-1` / `diff-item-2` class names directly in your own styles — use the `class` prop or wrap with your own container.
+
+---
+
+## PROP REFERENCE
+
+| Prop     | Type               | Required | Description                                                                           |
+| -------- | ------------------ | -------- | ------------------------------------------------------------------------------------- |
+| `images` | `SolidComponent[]` | ✅ YES   | Array of **exactly 2** JSX elements — index `0` = left panel, index `1` = right panel |
+| `class`  | `string`           | ❌ NO    | Extra Tailwind classes appended to the root `<figure>` element                        |
+
+---
+
+## HARD CONSTRAINT: `images` must have exactly 2 elements
+
+- Passing fewer or more than 2 elements → component returns `<></>` (renders nothing) and fires `console.warn('You need to provide exactly 2 images')`
+- There is no partial rendering fallback — the entire component is suppressed
+
+```ts
+// ✅ Valid
+images={[<img src="a.webp" />, <img src="b.webp" />]}
+
+// ❌ Invalid — renders nothing
+images={[<img src="a.webp" />]}
+images={[<img src="a.webp" />, <img src="b.webp" />, <img src="c.webp" />]}
+```
+
+---
+
+## INTERNAL DOM STRUCTURE
+
+```
+<figure class="diff aspect-video [class]" tabindex="0">
+  │
+  ├── <div class="diff-item-1" role="img" tabindex="0">
+  │     {images[0]}   ← LEFT panel (revealed by dragging resizer right)
+  │   </div>
+  │
+  ├── <div class="diff-item-2" role="img">
+  │     {images[1]}   ← RIGHT panel (base/background layer)
+  │   </div>
+  │
+  └── <div class="diff-resizer"></div>   ← invisible drag handle
+```
+
+### Layer rendering order
+
+- `diff-item-2` (right/background) renders behind — visible in full by default
+- `diff-item-1` (left/foreground) renders on top with `z-index: 1`, clipped by the resizer position
+- Dragging resizer RIGHT → reveals more of `images[0]` (left panel)
+- Dragging resizer LEFT → reveals more of `images[1]` (right panel)
+
+---
+
+## INTERACTION MECHANISM — CSS-only, no JS state
+
+The slider is driven entirely by CSS using a native `resize: horizontal` invisible div (`.diff-resizer`):
+
+- Default resizer position: `width: 50cqi` → panels shown 50/50
+- Resizer `min-width: 1rem`, `max-width: calc(100cqi - 1rem)` — cannot be dragged beyond edges
+- **Keyboard accessible**: `<figure tabindex="0">` and `<div class="diff-item-1" tabindex="0">` both focusable
+  - Focus on `<figure>` → resizer snaps to `min-width: 95cqi` (left panel nearly full)
+  - Focus on `diff-item-1` → resizer snaps to `min-width: 5cqi` (right panel nearly full)
+  - Snap transitions animated with `transition: min-width 0.3s ease-out`
+
+Agents do NOT manage any open/close or drag state — it is fully CSS-driven.
+
+---
+
+## CONTENT RULES FOR `images[0]` AND `images[1]`
+
+Both slots accept **any JSX element**, not just `<img>`. Internal CSS applies to all direct children:
+
+```css
+/* Applied to direct children of both diff-item-1 and diff-item-2 */
+position: absolute;
+top: 0;
+bottom: 0;
+left: 0;
+height: 100%;
+width: 100cqi;
+object-fit: cover;
+object-position: center;
+pointer-events: none;
+```
+
+### What this means for agents:
+
+- **`<img>`**: works perfectly — `object-fit: cover` is applied automatically
+- **`<div>`**: also works — div fills the full panel area. Use `grid place-content-center` or flex for internal layout
+- **Interactive elements inside panels**: will NOT work — `pointer-events: none` is applied to all children. Do NOT put buttons, links, or inputs inside `images`
+- **Do NOT add layout wrappers** around the img/div — children are positioned absolutely with `width: 100cqi`
+
+---
+
+## ASPECT RATIO
+
+- Root `<figure>` always has class `aspect-video` (16:9 ratio) applied by default
+- To change aspect ratio, override via `class` prop:
+
+```tsx
+// Square
+<Diff images={[...]} class="aspect-square" />
+
+// Custom ratio
+<Diff images={[...]} class="aspect-4/3" />
+
+// Fixed height
+<Diff images={[...]} class="h-100" />
+```
+
+---
+
+## USAGE PATTERNS
+
+### Pattern 1 — Image vs image (most common)
+
+```tsx
+<Diff
+  images={[
+    <img alt="before" src="/images/before.webp" />,
+    <img alt="after" src="/images/after.webp" />,
+  ]}
+/>
+```
+
+### Pattern 2 — Image vs custom div content
+
+```tsx
+<Diff
+  images={[
+    <img alt="photo" src="/images/photo.webp" />,
+    <div class="bg-base-200 text-base-content grid place-content-center text-6xl font-black">
+      BEFORE
+    </div>,
+  ]}
+/>
+```
+
+### Pattern 3 — Custom aspect ratio
+
+```tsx
+<Diff
+  class="aspect-square w-100"
+  images={[
+    <img alt="original" src="/images/original.webp" />,
+    <img alt="filtered" src="/images/filtered.webp" />,
+  ]}
+/>
+```
+
+### Pattern 4 — Two styled div panels
+
+```tsx
+<Diff
+  images={[
+    <div class="bg-primary text-primary-content grid place-content-center text-4xl font-bold">
+      Dark Mode
+    </div>,
+    <div class="bg-base-100 text-base-content grid place-content-center text-4xl font-bold">
+      Light Mode
+    </div>,
+  ]}
+/>
+```
+
+---
+
+## BEHAVIOR NOTES FOR AGENTS
+
+1. **`images[0]` = left (foreground), `images[1]` = right (background)** — the order determines which panel is clipped by the drag handle. Left panel sits on top and is revealed by dragging right.
+
+2. **Component is a `<figure>` element** — semantically appropriate for media comparison. Root is not a `<div>`.
+
+3. **`pointer-events: none` on all panel children** — nothing inside `images[0]` or `images[1]` can be clicked, hovered, or interacted with. Only the resizer handle is interactive.
+
+4. **No JS drag state** — the drag interaction is entirely driven by the native browser `resize: horizontal` CSS property on `.diff-resizer`. No SolidJS signals or event handlers involved.
+
+5. **`class` prop targets the root `<figure>` only** — cannot target internal `.diff-item-1`, `.diff-item-2`, or `.diff-resizer` via this prop.
+
+6. **Width fills container** — root `<figure>` has `width: 100%`. Wrap in a sized container or use `class="w-[500px]"` to constrain.
+
+---
+
+## COMMON MISTAKES TO AVOID
+
+| Mistake                                                       | Correct approach                                                                     |
+| ------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| Passing 1 or 3+ items in `images`                             | Always pass exactly 2 elements — no more, no less                                    |
+| Putting interactive elements (buttons, links) inside `images` | `pointer-events: none` blocks all interactions inside panels                         |
+| Wrapping `<img>` in an extra `<div>`                          | Pass `<img>` directly — children are already positioned absolutely to fill the panel |
+| Expecting `class` to style inner panels                       | `class` only applies to the root `<figure>`                                          |
+| Assuming left panel is `images[1]`                            | `images[0]` = left/foreground (clipped), `images[1]` = right/background              |
+| Using without a sized container                               | Add `w-full`, `w-[Npx]` or similar to control width                                  |
+
+---
+
+## FULL EXAMPLE
+
+```tsx
+import { Diff } from 'solid-tom-ui';
+
+// Image comparison
+<Diff
+  images={[
+    <img alt="sharp" src="/images/sharp.webp" />,
+    <img alt="blurred" src="/images/blurred.webp" />,
+  ]}
+/>
+
+// Image vs label panel, square aspect
+<Diff
+  class="aspect-square w-full max-w-lg"
+  images={[
+    <img alt="photo" src="/images/photo.webp" />,
+    <div class="bg-neutral text-neutral-content grid place-content-center text-5xl font-black">
+      Solid UI
+    </div>,
+  ]}
+/>
+```
+
+> **Unique IDs**: if this component needs to generate HTML `id` attributes, always use `createUniqueId()` from `solid-js` — never `Math.random()` or `Date.now()`.

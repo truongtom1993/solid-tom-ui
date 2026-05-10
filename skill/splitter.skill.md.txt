@@ -1,0 +1,411 @@
+## COMPONENT IDENTITY
+- **Import**: `import { Splitter } from 'solid-tom-ui';`
+- **Export**: `Splitter` (main), `Splitter.Panel` (sub-component)
+- **Framework**: SolidJS
+- **Purpose**: Resizable panel layout — renders two or more panels separated by draggable dividers; supports collapse and programmatic control
+
+---
+
+## Basic Usage
+
+The `Splitter` component uses a **compound component** pattern. Always wrap panels with `<Splitter.Panel>`.
+
+```tsx
+// Horizontal (default) — two panels at 40% / 60%
+<div class="h-40">
+  <Splitter>
+    <Splitter.Panel defaultSize={40}>
+      <div>Left</div>
+    </Splitter.Panel>
+    <Splitter.Panel defaultSize={60}>
+      <div>Right</div>
+    </Splitter.Panel>
+  </Splitter>
+</div>
+```
+
+> **Important:** The `Splitter` container must have an explicit height (or be inside a flex/grid parent with a defined height). Without it, panels will not render correctly.
+
+---
+
+## `Splitter` Props
+
+| Prop | Type | Default | Description |
+|---|---|---|---|
+| `vertical` | `boolean` | `false` | Stack panels top-to-bottom instead of left-to-right. Shorthand for `orientation="vertical"`. |
+| `orientation` | `'horizontal' \| 'vertical'` | `'horizontal'` | Explicit orientation. Prefer `vertical` shorthand. |
+| `lazy` | `boolean` | `false` | Defer size updates until mouse release. A ghost line shows the target position during drag. |
+| `size` | `number[]` | — | **Controlled mode.** Array of sizes (percent) for each panel. Must provide `onResize` to update. |
+| `color` | `BaseColorProps` | `'primary'` | Color token applied to dragger highlights. |
+| `children` | `JSX.Element` | **required** | Must contain one or more `<Splitter.Panel>`. |
+| `class` | `Partial<Record<'root'\|'panel'\|'dragger'\|'draggerBar'\|'collapseBtn', string>>` | — | Per-slot class overrides. |
+| `onResizeStart` | `(e: ResizeEvent) => void` | — | Fired when drag starts. |
+| `onResize` | `(e: ResizeEvent) => void` | — | Fired on every size change during drag (or on release in lazy mode). |
+| `onResizeEnd` | `(e: ResizeEvent) => void` | — | Fired when drag ends. |
+| `onDraggerDoubleClick` | `(index: number, sizes: number[]) => void` | — | Fired on double-click of a dragger. Use to reset sizes. |
+| `draggerIcon` | `JSX.Element \| (() => JSX.Element)` | — | Custom icon rendered inside the dragger bar. |
+
+> **Collapse props are split into two mutually exclusive modes** — see the section below.
+
+### `ResizeEvent`
+
+```ts
+{ sizes: number[]; index: number }
+// sizes — current percent sizes of all panels
+// index — dragger index that triggered the event
+```
+
+### `CollapseEvent`
+
+```ts
+{ sizes: number[]; collapsed: boolean[]; index: number }
+// collapsed — boolean array, true means that panel is currently collapsed
+// index — panel index that was toggled
+```
+
+---
+
+## Collapse Modes (Discriminated Union)
+
+`SplitterProps` is a **discriminated union** — you must choose one of two collapse modes. Mixing props from both modes is a TypeScript error.
+
+### Uncontrolled Collapse (default)
+
+Splitter manages collapse state internally. Icon buttons and double-click trigger collapse.
+
+| Prop | Type | Default | Description |
+|---|---|---|---|
+| `showCollapsibleIcon` | `boolean \| 'auto'` | `'auto'` | `'auto'` = icons visible on hover only. `true` = always visible. `false` = icons hidden (double-click only). |
+| `collapsibleIcon` | `{ collapse?, expand? }` | — | Custom collapse/expand icons. Each accepts `JSX.Element` or a function returning one. |
+| `onCollapse` | `(e: CollapseEvent) => void` | — | Fired when a panel is collapsed or expanded. |
+
+```tsx
+// Uncontrolled: component owns collapse state
+<Splitter showCollapsibleIcon="auto" onCollapse={e => console.log(e.collapsed)}>
+  <Splitter.Panel defaultSize={30} collapsible>Sidebar</Splitter.Panel>
+  <Splitter.Panel defaultSize={70}>Content</Splitter.Panel>
+</Splitter>
+```
+
+### Controlled Collapse
+
+Caller owns the collapse state. Icon buttons are **disabled entirely** — only the external signal controls which panels are hidden.
+
+| Prop | Type | Description |
+|---|---|---|
+| `collapsed` | `boolean[]` | Array of booleans matching panel count. `true` = panel hidden. |
+
+> When using `collapsed`, these props are **forbidden** (TypeScript error): `showCollapsibleIcon`, `collapsibleIcon`, `onCollapse`.
+
+```tsx
+const [collapsed, setCollapsed] = createSignal([false, false]);
+
+<button onClick={() => setCollapsed(p => [!p[0], p[1]])}>Toggle Sidebar</button>
+
+<Splitter collapsed={collapsed()}>
+  <Splitter.Panel defaultSize={30}>Sidebar</Splitter.Panel>
+  <Splitter.Panel defaultSize={70}>Content</Splitter.Panel>
+</Splitter>
+```
+
+---
+
+## `Splitter.Panel` Props
+
+| Prop | Type | Default | Description |
+|---|---|---|---|
+| `defaultSize` | `number` | auto-distributed | Uncontrolled initial size (percent). |
+| `size` | `number` | — | Controlled size per-panel (rarely used; prefer `Splitter size=[]`). |
+| `min` | `number` | `0` | Minimum size (percent). Panel cannot be dragged below this. |
+| `max` | `number` | `100` | Maximum size (percent). Panel cannot be dragged above this. |
+| `resizable` | `boolean` | `true` | Set to `false` to make this panel's adjacent dragger inert. |
+| `collapsible` | `boolean` | `false` | Allow this panel to be collapsed to zero. Only relevant in uncontrolled mode. |
+| `class` | `string` | — | Extra class on the panel wrapper element. |
+| `children` | `JSX.Element` | — | Panel content. |
+
+---
+
+## Recipes
+
+### Vertical split
+
+```tsx
+<div class="h-48">
+  <Splitter vertical>
+    <Splitter.Panel defaultSize={40}>
+      <div>Top</div>
+    </Splitter.Panel>
+    <Splitter.Panel defaultSize={60}>
+      <div>Bottom</div>
+    </Splitter.Panel>
+  </Splitter>
+</div>
+```
+
+### Three panels with min/max constraints
+
+```tsx
+<Splitter>
+  <Splitter.Panel defaultSize={25} min={10} max={50}>Left</Splitter.Panel>
+  <Splitter.Panel defaultSize={50} min={20}>Center</Splitter.Panel>
+  <Splitter.Panel defaultSize={25} min={10} max={50}>Right</Splitter.Panel>
+</Splitter>
+```
+
+### Lazy mode (ghost line during drag)
+
+```tsx
+<Splitter lazy>
+  <Splitter.Panel defaultSize={50}>Left</Splitter.Panel>
+  <Splitter.Panel defaultSize={50}>Right</Splitter.Panel>
+</Splitter>
+```
+
+### Collapsible sidebar (one side)
+
+```tsx
+// Left panel can be collapsed. Collapse icon appears on dragger hover (default 'auto').
+<Splitter>
+  <Splitter.Panel defaultSize={30} min={15} collapsible>
+    Sidebar
+  </Splitter.Panel>
+  <Splitter.Panel defaultSize={70}>
+    Main Content
+  </Splitter.Panel>
+</Splitter>
+```
+
+### Collapsible both sides — icon always visible
+
+```tsx
+<Splitter showCollapsibleIcon={true}>
+  <Splitter.Panel defaultSize={35} min={10} collapsible>Sidebar</Splitter.Panel>
+  <Splitter.Panel defaultSize={65} min={10} collapsible>Editor</Splitter.Panel>
+</Splitter>
+```
+
+### Collapsible — icon hidden (double-click dragger only)
+
+```tsx
+<Splitter showCollapsibleIcon={false}>
+  <Splitter.Panel defaultSize={40} min={10} collapsible>Panel A</Splitter.Panel>
+  <Splitter.Panel defaultSize={60} min={10} collapsible>Panel B</Splitter.Panel>
+</Splitter>
+```
+
+### Non-resizable panel
+
+```tsx
+// Right panel is fixed; its adjacent dragger is disabled
+<Splitter>
+  <Splitter.Panel defaultSize={70}>Main</Splitter.Panel>
+  <Splitter.Panel defaultSize={30} resizable={false}>Fixed sidebar</Splitter.Panel>
+</Splitter>
+```
+
+### Controlled size
+
+```tsx
+const [sizes, setSizes] = createSignal([40, 60]);
+
+<Splitter size={sizes()} onResize={e => setSizes(e.sizes)}>
+  <Splitter.Panel>
+    <div>Left {sizes()[0].toFixed(0)}%</div>
+  </Splitter.Panel>
+  <Splitter.Panel>
+    <div>Right {sizes()[1].toFixed(0)}%</div>
+  </Splitter.Panel>
+</Splitter>
+```
+
+### Double-click dragger to reset sizes
+
+```tsx
+const [sizes, setSizes] = createSignal([50, 50]);
+
+<Splitter
+  size={sizes()}
+  onResize={e => setSizes(e.sizes)}
+  onDraggerDoubleClick={() => setSizes([50, 50])}
+>
+  <Splitter.Panel><div>{sizes()[0].toFixed(0)}%</div></Splitter.Panel>
+  <Splitter.Panel><div>{sizes()[1].toFixed(0)}%</div></Splitter.Panel>
+</Splitter>
+```
+
+### Controlled collapse — toggle panels from outside
+
+```tsx
+const [collapsed, setCollapsed] = createSignal([false, false, false]);
+
+const toggle = (idx: number) =>
+  setCollapsed(prev => prev.map((v, i) => (i === idx ? !v : v)));
+
+// Toolbar buttons control visibility — no icons shown on dragger
+<div class="flex gap-2">
+  <button class="btn btn-xs" onClick={() => toggle(0)}>Toggle Sidebar</button>
+  <button class="btn btn-xs" onClick={() => toggle(2)}>Toggle Inspector</button>
+</div>
+
+<Splitter collapsed={collapsed()}>
+  <Splitter.Panel defaultSize={25} min={10}>Left Sidebar</Splitter.Panel>
+  <Splitter.Panel defaultSize={50} min={20}>Main Editor</Splitter.Panel>
+  <Splitter.Panel defaultSize={25} min={10}>Right Inspector</Splitter.Panel>
+</Splitter>
+```
+
+### Controlled collapse — vertical layout
+
+```tsx
+const [collapsed, setCollapsed] = createSignal([false, false, false]);
+
+<Splitter vertical collapsed={collapsed()}>
+  <Splitter.Panel defaultSize={20} min={10}>Header</Splitter.Panel>
+  <Splitter.Panel defaultSize={60} min={20}>Content</Splitter.Panel>
+  <Splitter.Panel defaultSize={20} min={10}>Footer</Splitter.Panel>
+</Splitter>
+```
+
+### Nested splitters — IDE layout (controlled collapse)
+
+```tsx
+const [outerCollapsed, setOuterCollapsed] = createSignal([false, false, false]);
+const [innerCollapsed, setInnerCollapsed] = createSignal([false, false]);
+
+<div class="h-72">
+  <Splitter collapsed={outerCollapsed()}>
+    {/* Left sidebar */}
+    <Splitter.Panel defaultSize={22} min={10}>
+      File Tree
+    </Splitter.Panel>
+
+    {/* Center: editor + terminal stacked vertically */}
+    <Splitter.Panel defaultSize={56} min={20}>
+      <Splitter vertical collapsed={innerCollapsed()}>
+        <Splitter.Panel defaultSize={65} min={20}>Editor</Splitter.Panel>
+        <Splitter.Panel defaultSize={35} min={10}>Terminal</Splitter.Panel>
+      </Splitter>
+    </Splitter.Panel>
+
+    {/* Right inspector */}
+    <Splitter.Panel defaultSize={22} min={10}>
+      Inspector
+    </Splitter.Panel>
+  </Splitter>
+</div>
+```
+
+### Nested splitters — IDE layout (uncontrolled collapse)
+
+```tsx
+<div class="h-72">
+  <Splitter showCollapsibleIcon="auto">
+    <Splitter.Panel defaultSize={22} min={10} collapsible>
+      File Tree
+    </Splitter.Panel>
+    <Splitter.Panel defaultSize={56} min={20}>
+      <Splitter vertical>
+        <Splitter.Panel defaultSize={65} min={20}>Editor</Splitter.Panel>
+        <Splitter.Panel defaultSize={35} min={10} collapsible>Terminal</Splitter.Panel>
+      </Splitter>
+    </Splitter.Panel>
+    <Splitter.Panel defaultSize={22} min={10} collapsible>
+      Inspector
+    </Splitter.Panel>
+  </Splitter>
+</div>
+```
+
+### Three collapsible panels (always-visible icons)
+
+```tsx
+<Splitter showCollapsibleIcon={true}>
+  <Splitter.Panel defaultSize={25} min={10} collapsible>Left Sidebar</Splitter.Panel>
+  <Splitter.Panel defaultSize={50} min={20}>Main Editor</Splitter.Panel>
+  <Splitter.Panel defaultSize={25} min={10} collapsible>Right Panel</Splitter.Panel>
+</Splitter>
+```
+
+### Vertical collapsible panels
+
+```tsx
+<div class="h-64">
+  <Splitter vertical showCollapsibleIcon={true}>
+    <Splitter.Panel defaultSize={30} min={10} collapsible>Header</Splitter.Panel>
+    <Splitter.Panel defaultSize={45} min={20}>Content</Splitter.Panel>
+    <Splitter.Panel defaultSize={25} min={10} collapsible>Footer</Splitter.Panel>
+  </Splitter>
+</div>
+```
+
+---
+
+## Collapse Behavior
+
+- A panel marked `collapsible` collapses to **zero size**; its neighbor absorbs the freed space.
+- The previously occupied size is saved internally and restored on expand.
+- In **uncontrolled mode**: collapse is triggered via the icon button **or** by double-clicking the adjacent dragger.
+- In **controlled mode**: collapse is driven entirely by the `collapsed` prop — no icon buttons appear.
+- The `showCollapsibleIcon` prop controls icon visibility (uncontrolled only):
+  - `'auto'` (default) — icons appear on dragger hover only.
+  - `true` — icons always visible.
+  - `false` — icons hidden entirely; only double-click collapses.
+- `onCollapse` fires on both collapse and expand (uncontrolled only), providing the full updated `CollapseEvent`.
+
+---
+
+## Size Calculation Rules
+
+- When all panels have `defaultSize`, values are **normalized** to sum to 100%.
+  - Example: `defaultSize={40}` + `defaultSize={60}` → 40% + 60% (already sums to 100, no change).
+  - Example: `defaultSize={2}` + `defaultSize={3}` → 40% + 60% (normalized).
+- When some panels omit `defaultSize`, the remaining percentage after defined sizes is split equally among them.
+- In **controlled size mode** (`size` prop), always keep `size.length === number of panels`. Mismatches are silently ignored.
+- In **controlled collapse mode** (`collapsed` prop), always keep `collapsed.length === number of panels`.
+
+---
+
+## Class Override Slots
+
+Use the `class` prop (object) to target individual elements:
+
+```tsx
+<Splitter
+  class={{
+    root: 'rounded-xl overflow-hidden',
+    panel: 'bg-base-100',
+    dragger: 'bg-base-300 hover:bg-primary/30',
+    collapseBtn: 'text-primary',
+  }}
+>
+  ...
+</Splitter>
+```
+
+Available slots: `root` · `panel` · `dragger` · `draggerBar` · `collapseBtn`.
+
+> **CSS encoding**: internal CSS classes use short encoded names (e.g. `sp01`, `sp02`) per project convention.
+
+---
+
+## Architecture Note
+
+`Splitter.Panel` does **not** render anything itself — it only registers its props into a `PanelRegistryContext`. The parent `Splitter` reads the registry with `<For>` and renders the actual panel `<div>` elements and draggers. This means panel children are rendered inside `Splitter`, not at the `Panel` call site.
+
+---
+
+## Common Mistakes
+
+| Mistake | Fix |
+|---|---|
+| Container has no height | Add explicit `h-*` or ensure parent has a defined height |
+| Controlled `size` array length doesn't match panel count | Keep `size.length === panels.length` |
+| Controlled `collapsed` array length doesn't match panel count | Keep `collapsed.length === panels.length` |
+| Using `showCollapsibleIcon` with `collapsed` prop | TypeScript error — choose one mode; controlled collapse disables icon buttons entirely |
+| Collapsible works but icon never shows | Default `showCollapsibleIcon` is `'auto'` — hover the dragger to reveal |
+| Panel snaps back after drag | Controlled size mode: wire `onResize` to update the signal |
+| `min` seems to prevent collapse | `collapsible` overrides `min` — collapsed panels go to 0 regardless of `min` |
+| Nested Splitter has wrong height | Inner `Splitter.Panel` needs `h-full` or the nested Splitter won't fill its panel |
+| `onCollapse` not firing | Only available in uncontrolled mode — not available when `collapsed` prop is used |
+
+> **Unique IDs**: if this component needs to generate HTML `id` attributes, always use `createUniqueId()` from `solid-js` — never `Math.random()` or `Date.now()`.

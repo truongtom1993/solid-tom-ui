@@ -1,0 +1,476 @@
+## COMPONENT IDENTITY
+- **Import**: `import { Menu } from 'solid-tom-ui';`
+- **Export**: `Menu` (named export), `MenuVariantsProps`, `MenuProps` (type exports)
+- **Framework**: SolidJS
+- **Purpose**: Hierarchical navigation menu with nested folders, active highlighting, and horizontal/vertical orientation
+
+## TYPE REFERENCE
+
+### `MenuProps`
+
+| Prop | Type | Default | Description |
+|---|---|---|---|
+| `id` | `string` | — | HTML `id` on the root `<ul>` element. |
+| `color` | `BaseColorProps` | `'secondary'` | Color theme applied via `getColor()`. |
+| `size` | `'xs' \| 'sm' \| 'md' \| 'lg' \| 'xl'` | `'md'` | Visual size variant via CVA. |
+| `direction` | `'vertical' \| 'horizontal'` | `'vertical'` | Layout direction. Horizontal collapses sibling root folders on expand. |
+| `highlightActive` | `boolean` | `true` | Add `_6ca32a` active class to the clicked item and its ancestor path. |
+| `defaultExpanded` | `boolean` | `false` | Default expand state for all folders that do not specify their own `defaultExpanded`. |
+| `class` | `Partial<Record<'root' \| 'itemWrap' \| 'itemHeader', string>>` | — | Merge custom classes onto specific structural elements. |
+| `onItemClick` | `(info: ItemClickInfo) => void` | — | Fires on any item click (file, folder, title). |
+| `onError` | `(info: MenuErrorInfo) => void` | — | Fires when any lazy load fails (root or folder). `info.source` distinguishes the two cases. |
+| `setMenuFunction` | `Setter<MenuFunction \| undefined>` | — | Receives the imperative API object after mount. Pass a signal setter to gain external control. |
+| `items` | `MenuItem[]` | — | **Sync mode**: static array of menu items. Mutually exclusive with `lazyItems`. |
+| `lazyItems` | `() => Promise<MenuItem[]>` | — | **Async mode**: async loader for root-level items. Runs immediately on mount. Mutually exclusive with `items`. |
+
+> `MenuProps` is a discriminated union: you must provide either `items` OR `lazyItems`, not both.
+
+---
+
+### `MenuItem` — Item Types
+
+`MenuItem = FileItem | FolderItem | TitleItem`
+
+#### `FileItem`
+
+```ts
+type FileItem = {
+  type: 'file';
+  id?: string;
+  content: SolidComponent;   // string | JSX.Element | () => JSX.Element
+  disabled?: boolean;
+  data?: Record<string, any>;
+};
+```
+
+- Rendered as `<li class="file">` with a `<div>` wrapper.
+- Clickable; fires `onItemClick` with `type: 'file'`.
+
+#### `FolderItem` (Sync or Lazy)
+
+```ts
+// Sync folder
+type SyncFolder = {
+  type: 'folder';
+  id?: string;
+  content: SolidComponent;
+  disabled?: boolean;
+  data?: Record<string, any>;
+  defaultExpanded?: boolean;
+  items: MenuItem[];          // preloaded children
+};
+
+// Lazy folder
+type LazyFolder = {
+  type: 'folder';
+  id?: string;
+  content: SolidComponent;
+  disabled?: boolean;
+  data?: Record<string, any>;
+  defaultExpanded?: boolean;
+  lazyItems: () => Promise<MenuItem[]>;  // async loader
+};
+```
+
+- Rendered as `<li class="folder">` containing a `<details>`/`<summary>` pair.
+- Toggle opens/closes the folder; `onItemClick` fires with `type: 'folder'` and `isExpanded`.
+- Lazy folders show a loading spinner while fetching; on error, show a `toast.error` and collapse.
+
+#### `TitleItem`
+
+```ts
+type TitleItem = {
+  type: 'title';
+  id?: string;
+  content: SolidComponent;
+  disabled?: boolean;
+  data?: Record<string, any>;
+  items: (FileItem | TitleItem | SyncFolder)[];  // no lazy folders allowed in title children
+};
+```
+
+- Rendered as `<li class="title">` with an `<h4 class="menu-title">` header.
+- Clicking the header toggles active highlight; fires `onItemClick` with `type: 'title'`.
+- Children are always sync — `LazyFolder` is **not** allowed as a `TitleItem` child.
+
+---
+
+### `ItemClickInfo`
+
+```ts
+type ItemClickInfo = {
+  id: string;                        // item's resolved id (auto-generated if not set)
+  path: string[];                    // ancestor id chain from root to this item
+  type: 'file' | 'folder' | 'title';
+  isExpanded?: boolean;              // only present for folder clicks
+  data?: Record<string, any>;        // item's data field, if set
+};
+```
+
+### `MenuErrorInfo`
+
+```ts
+type MenuErrorInfo = {
+  source: 'root' | 'folder';  // 'root' = root lazyItems failed; 'folder' = lazy folder children failed
+  itemId?: string;             // folder id (only when source = 'folder')
+  path?: string[];             // ancestor path to the folder (only when source = 'folder')
+  error: unknown;              // the raw caught error
+  message: string;             // normalized error message string
+};
+```
+
+---
+
+### `MenuFunction` — Imperative API
+
+Obtained via `setMenuFunction` prop. All methods operate on the DOM directly via id lookup.
+
+| Method | Signature | Description |
+|---|---|---|
+| `focusById` | `(id: string) => void` | Expand all ancestors of the node and apply active highlight to its full path. |
+| `collapseById` | `(id: string) => void` | Close the folder's `<details>` and remove active highlight from it and its descendants. |
+| `refreshById` | `(id: string) => void` | Force-reload a lazy folder's children (re-calls `lazyItems`). Only works on mounted (previously expanded) lazy folders. |
+| `refreshAll` | `() => void` | Force-reload all mounted lazy folders simultaneously. |
+| `collapseAll` | `() => void` | Close all `<details>` elements in the menu tree. |
+| `expandedAll` | `() => void` | Open all `<details>` elements in the menu tree. |
+
+---
+
+## BEHAVIORAL RULES (inferred from implementation)
+
+### Sync vs Lazy (root level)
+
+- **Sync** (`items`): items rendered immediately; reactive — updating `items` prop re-renders the whole tree and clears both registries.
+- **Lazy** (`lazyItems`): `lazyItems()` is called once on mount; result cached in `rootItems` signal. Shows a full-screen spinner while loading. On error, shows "No menu items available" with a "Try again" button.
+
+### Lazy Folder Loading
+
+- Children are loaded on first expand (`shouldLoad` signal transitions to `true`).
+- Already-loaded items are **not** re-fetched on subsequent expands (cached in `loadedItems` signal).
+- `refreshById` / `refreshAll` bypass the cache and force a re-fetch.
+- While loading: `<details>` toggle is blocked (`e.preventDefault()`); spinner replaces the `summary` arrow indicator.
+- On load error: `toast.error(message)` fires, folder collapses automatically.
+
+### Node Registry
+
+- Every item gets a unique id: use the `id` prop if provided, otherwise `createUniqueId()` is assigned internally.
+- `NodeRegistry` maps each id → parent id, enabling `getPath(id)` to return the full ancestor chain.
+- Registry is cleared when `items` prop changes (sync mode) or on component cleanup.
+
+### Active Highlight
+
+- Controlled by `highlightActive` prop (default `true`).
+- Active CSS class `_6ca32a` is added to every node in the path from root to the clicked item.
+- Clicking a new item removes all existing `_6ca32a` classes first, then applies to the new path.
+- Clicking a `title` item toggles: if already active, removes highlight; otherwise applies it.
+- `focusById` triggers the same active highlight logic programmatically.
+
+### Horizontal Direction
+
+- In horizontal mode, expanding a root-level folder (`parentId === null`) automatically collapses all other root-level folders (accordion behavior).
+- Nested folders inside a horizontal root folder behave normally (no auto-collapse).
+
+### `defaultExpanded`
+
+```
+item.defaultExpanded       → per-item override
+p.defaultExpanded          → global fallback
+effective = item.defaultExpanded ?? p.defaultExpanded ?? false
+```
+
+### Content rendering
+
+`content` is typed as `SolidComponent = string | JSX.Element | (() => JSX.Element)`. Pass a function `() => <JSX>` to defer evaluation and enable reactivity inside the item content.
+
+---
+
+## USAGE PATTERNS
+
+### 1. Minimal sync menu
+
+```tsx
+import { Menu } from 'solid-tom-ui';
+
+<Menu
+  items={[
+    { type: 'file', content: 'README.md' },
+    {
+      type: 'folder',
+      content: 'src',
+      items: [
+        { type: 'file', content: 'App.tsx' },
+        { type: 'file', content: 'index.tsx' },
+      ],
+    },
+  ]}
+/>
+```
+
+### 2. Handling item clicks
+
+```tsx
+<Menu
+  items={menuItems}
+  onItemClick={(info) => {
+    console.log(info.type);       // 'file' | 'folder' | 'title'
+    console.log(info.id);         // item id
+    console.log(info.path);       // ['root-id', 'parent-id', 'item-id']
+    console.log(info.isExpanded); // boolean | undefined (folder only)
+    console.log(info.data);       // custom data payload
+  }}
+/>
+```
+
+### 3. Using `data` for routing
+
+```tsx
+const items: MenuItem[] = [
+  { type: 'file', id: 'dashboard', content: 'Dashboard', data: { route: '/dashboard' } },
+  { type: 'file', id: 'settings', content: 'Settings', data: { route: '/settings' } },
+];
+
+<Menu
+  items={items}
+  onItemClick={(info) => {
+    if (info.data?.route) navigate(info.data.route);
+  }}
+/>
+```
+
+### 4. Title items (non-collapsible section headers)
+
+```tsx
+<Menu
+  items={[
+    {
+      type: 'title',
+      content: 'Configuration',
+      items: [
+        { type: 'file', content: 'tsconfig.json' },
+        { type: 'file', content: 'vite.config.ts' },
+      ],
+    },
+  ]}
+/>
+```
+
+### 5. Lazy folder (async children)
+
+```tsx
+const items: MenuItem[] = [
+  {
+    type: 'folder',
+    id: 'api-folder',
+    content: 'api',
+    lazyItems: async () => {
+      const res = await fetch('/api/files');
+      return await res.json(); // must return MenuItem[]
+    },
+  },
+];
+
+<Menu items={items} />
+```
+
+### 6. Root-level async menu (`lazyItems` prop)
+
+```tsx
+<Menu
+  lazyItems={async () => {
+    const data = await fetchRootFiles();
+    return data; // MenuItem[]
+  }}
+  onItemClick={handleClick}
+/>
+```
+
+### 7. Imperative control via `setMenuFunction`
+
+```tsx
+const [menuFn, setMenuFn] = createSignal<MenuFunction>();
+
+<Menu items={items} setMenuFunction={setMenuFn} />
+
+// Later, from event handlers or effects:
+menuFn()?.focusById('settings-file');
+menuFn()?.collapseAll();
+menuFn()?.expandedAll();
+menuFn()?.collapseById('src-folder');
+menuFn()?.refreshById('api-lazy-folder'); // lazy folders only
+menuFn()?.refreshAll();
+```
+
+### 8. All folders expanded by default
+
+```tsx
+<Menu items={items} defaultExpanded={true} />
+```
+
+### 9. Per-folder expand override
+
+```tsx
+const items: MenuItem[] = [
+  { type: 'folder', content: 'always-open', defaultExpanded: true, items: [...] },
+  { type: 'folder', content: 'always-closed', defaultExpanded: false, items: [...] },
+];
+// Global defaultExpanded is overridden per item
+<Menu items={items} defaultExpanded={true} />
+```
+
+### 10. Horizontal menu (top nav style)
+
+```tsx
+<Menu
+  items={navItems}
+  direction="horizontal"
+  class={{ root: 'rounded-box bg-base-100 border h-fit w-fit flex-nowrap' }}
+/>
+// Root-level folders auto-collapse when another is expanded (accordion)
+```
+
+### 11. Icon-only sidebar
+
+```tsx
+<Menu
+  items={[
+    { type: 'file', content: <HomeIcon /> },
+    { type: 'file', content: <BellIcon /> },
+    { type: 'file', content: <SettingsIcon /> },
+  ]}
+  direction="vertical"
+  class={{
+    root: 'bg-base-100 rounded-box border h-fit',
+    itemWrap: 'w-fit',
+    itemHeader: 'aspect-square w-12 place-content-center',
+  }}
+/>
+```
+
+### 12. Custom class on elements
+
+```tsx
+<Menu
+  items={items}
+  class={{
+    root: 'bg-base-100 border border-base-300 rounded-lg min-w-[260px]',
+    itemWrap: 'my-custom-item',
+    itemHeader: 'font-semibold text-primary',
+  }}
+/>
+```
+
+### 13. Mixed sync + lazy tree
+
+```tsx
+const items: MenuItem[] = [
+  { type: 'file', content: 'README.md' },
+  {
+    type: 'folder',
+    content: 'src',
+    items: [
+      { type: 'file', content: 'App.tsx' },
+      {
+        type: 'folder',
+        id: 'api-lazy-folder',
+        content: 'api',
+        lazyItems: loadApiItems,  // async only for this subtree
+      },
+    ],
+  },
+];
+<Menu items={items} />
+```
+
+### 14. Disabled items
+
+```tsx
+const items: MenuItem[] = [
+  { type: 'file', content: 'Active file' },
+  { type: 'file', content: 'Disabled file', disabled: true },
+  { type: 'folder', content: 'Disabled folder', disabled: true, items: [] },
+];
+<Menu items={items} />
+// Disabled items get 'menu-disabled' class; folder toggle is blocked when disabled
+```
+
+### 15. Reactive items (update from outside)
+
+```tsx
+const [items, setItems] = createSignal<MenuItem[]>(initialItems);
+
+<Menu items={items()} />
+
+// Later:
+setItems(newItems); // Registry clears and re-renders the entire tree
+```
+
+---
+
+## CSS CLASSES (public API for customization)
+
+| Class | Applied to |
+|---|---|
+| `menu` | Root `<ul>` |
+| `menu-vertical` | Root `<ul>` when `direction='vertical'` |
+| `menu-horizontal` | Root `<ul>` when `direction='horizontal'` |
+| `menu-xs/sm/md/lg/xl` | Root `<ul>` size modifier |
+| `menu-title` | `<h4>` inside title items |
+| `menu-disabled` | `<li>` for disabled items or loading lazy folders |
+| `file` | `<li>` for file items |
+| `folder` | `<li>` for folder items |
+| `title` | `<li>` for title items |
+| `_6ca32a` | Active highlight — applied to items in the selected path |
+
+Use `class={{ root, itemWrap, itemHeader }}` prop to append classes to:
+- `root` → `<ul>` (root list)
+- `itemWrap` → each `<li>` item
+- `itemHeader` → `<summary>` inside folder items
+
+---
+
+## ANIMATION
+
+- All menu elements transition via `transition: all 0.3s cubic-bezier(0, 0, 0.2, 1)` applied globally under `@utility menu`.
+- Folder open/close uses the native `<details>` browser animation (no JS animation).
+- Active highlight class `_6ca32a` transitions smoothly due to the global CSS transition rule.
+
+---
+
+## CONSTRAINTS & EDGE CASES
+
+- `items` and `lazyItems` are mutually exclusive at every level. Do not mix them on the same item; they are discriminated by TypeScript.
+- `TitleItem.items` cannot contain `LazyFolder` — the type system enforces `MenuTitleItems = FileItem | TitleItem | SyncFolder`.
+- `refreshById` / `refreshAll` only work on lazy folders that have been **mounted** (expanded at least once). Calling them on un-expanded folders is a no-op with a console warning.
+- `focusById` / `collapseById` log a console warning and return early if the given `id` is not in the registry.
+- When `items` prop changes reactively, **both** `NodeRegistry` and `LazyFolderRegistry` are fully cleared and rebuilt — all loaded lazy folder data is lost.
+- In horizontal mode, `collapseOtherRootFolders` only affects **direct children** of the root `<ul>` (`li.folder > details`). Nested folders inside a root folder are unaffected.
+- `content` rendered inside a `title` item's `<h4>` is clickable for highlight toggle but does **not** collapse/expand children (title items are non-collapsible).
+- Lazy folder errors collapse the folder, reset `shouldLoad`, and fire `onError` with `source: 'folder'`. The next expand attempt will re-trigger `lazyItems`.
+- Root lazy load errors fire `onError` with `source: 'root'`. The menu shows "No menu items available" with a "Try again" button.
+- `id` prop on `Menu` is only set on the root `<ul>` (not on the wrapper fragment).
+- `setMenuFunction` is called **synchronously** during render (not in an effect). The returned `MenuFunction` object is available immediately after the signal setter is called.
+
+---
+
+## DO / DON'T
+
+**DO**
+- Always provide `id` on items you intend to control via `MenuFunction` (focusById, collapseById, refreshById).
+- Use `data` field to attach routing info, metadata, or any payload — accessible in `onItemClick`.
+- Use `setMenuFunction` + a signal to get the imperative API for programmatic control.
+- Pass `content` as `() => <JSX>` for reactive or expensive content inside items.
+- Use `lazyItems` at the folder level for deep trees where loading all data upfront is expensive.
+- Import from the barrel: `import { Menu } from 'solid-tom-ui'`.
+
+**DON'T**
+- Don't mix `items` and `lazyItems` on the same `MenuProps` or `FolderItem` — they are exclusive.
+- Don't put `LazyFolder` inside a `TitleItem.items` — it's not allowed by the type system.
+- Don't call `refreshById` on a lazy folder that has never been expanded — it will warn and do nothing.
+- Don't rely on `focusById` without a `defaultExpanded` or prior expansion — the node must be in the registry, which happens on render (all items register regardless of expand state, but DOM manipulation requires the element to exist).
+- Don't import `MenuExample` or `menu.data-example` in production — they are demo utilities only.
+- Don't update `items` prop frequently if you rely on lazy folder loaded state — every change clears all registries and reloads the tree from scratch.
+---
+
+## Component Conventions
+
+> **CSS encoding**: internal CSS classes use short encoded names (e.g. `mn01`, `mn02`) per project convention.

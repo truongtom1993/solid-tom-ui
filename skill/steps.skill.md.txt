@@ -1,0 +1,264 @@
+## COMPONENT IDENTITY
+- **Import**: `import { Steps } from 'solid-tom-ui';`
+- **Export**: `Steps` (named export), `StepsProps`, `StepItem` (type exports)
+- **Framework**: SolidJS
+- **Purpose**: Multi-step progress indicator — three visual types, two orientations, full color theming, disabled steps; always controlled (parent owns step index)
+
+## Props
+
+| Prop          | Type                                          | Default        | Description                                                              |
+| ------------- | --------------------------------------------- | -------------- | ------------------------------------------------------------------------ |
+| `type`        | `'default' \| 'navigation' \| 'dot'`          | `'default'`    | Visual style of the steps                                                |
+| `color`       | `BaseColorProps`                              | `'primary'`    | Accent color for active/done steps and connectors                        |
+| `orientation` | `'horizontal' \| 'vertical'`                  | `'horizontal'` | Layout direction                                                         |
+| `items`       | `StepItem[]`                                  | `[]`           | Step definitions. Takes priority over `total`                            |
+| `total`       | `number`                                      | —              | Auto-generates `total` numbered steps (`Step 1`, `Step 2`, …). Used only when `items` is empty |
+| `current`     | `Accessor<number>`                            | —              | **Signal getter** for the active step index (0-based)                    |
+| `setCurrent`  | `Setter<number>`                              | —              | **Signal setter** — called when a step is clicked                        |
+| `onChange`    | `(index: number) => void`                     | —              | Additional callback fired on step click, after `setCurrent`             |
+| `disabled`    | `number[]`                                    | `[]`           | Indices of steps that cannot be clicked                                  |
+| `activeIndex` | `number[]`                                    | —              | Force specific step indices to `active` status, regardless of `current`  |
+| `class`       | `{ root?, step?, icon?, title?, description?, connector? }` | — | Per-element class overrides (see below)                    |
+
+### `StepItem`
+
+```ts
+type StepItem = {
+  title?: JSX.Element;       // Step label
+  description?: JSX.Element; // Subtitle/detail text
+  icon?: JSX.Element;        // Custom icon (replaces the number; checkmark still shows for done)
+};
+```
+
+### `class` Object
+
+All keys are optional strings appended via `cn()`:
+
+| Key           | Target element                              |
+| ------------- | ------------------------------------------- |
+| `root`        | The outermost container `<div>`             |
+| `step`        | Each individual step `<div>`                |
+| `icon`        | The icon circle / dot element               |
+| `title`       | The step title `<div>`                      |
+| `description` | The step description `<div>`               |
+| `connector`   | The connector line between steps            |
+
+## Step Status
+
+Each step's appearance is determined by its `StepStatus`:
+
+| Status     | Condition                                                                 |
+| ---------- | ------------------------------------------------------------------------- |
+| `active`   | Index equals `current`, or index is in `activeIndex`                      |
+| `done`     | Index is less than `current` (and not disabled / not in `activeIndex`)    |
+| `upcoming` | Index is greater than `current`                                           |
+| `disabled` | Index is in `disabled[]` — overrides all other statuses                  |
+
+## Visual Types
+
+### `type="default"` (Default)
+
+Classic step indicator with circular icon badges and connecting lines.
+
+- **Horizontal**: icons in a row, connectors are flex siblings between them, content labels appear below via `position: absolute`
+- **Vertical**: icons in a left column with vertical connectors, content to the right
+- Icon states: upcoming = outline circle with number; done = filled circle with checkmark; active = outline circle with color ring
+- Provides a custom `icon` in `StepItem` to replace the number (checkmark still appears for `done` steps without a custom icon)
+
+### `type="navigation"`
+
+Pill-breadcrumb strip, suitable for page-level navigation headers.
+
+- **Horizontal**: pills in a row separated by `›` arrow icons
+- **Vertical**: a stacked list with a colored left-border rail on the active item
+- Active step gets a white card with a subtle shadow; done steps show colored text
+- More compact icon badge (24px vs 32px in `default`)
+
+### `type="dot"`
+
+Minimal dot indicators with optional labels, ideal for carousels or simple progress.
+
+- **Horizontal**: small dots connected by thin lines, content below via `position: absolute`
+- **Vertical**: dots in a left column with connectors, content to the right
+- Active dot scales up (`1.6×`) with a color ring; done dot fills solid
+
+## Usage Examples
+
+### Basic controlled steps
+
+```tsx
+import { createSignal } from 'solid-js';
+import { Steps } from 'solid-tom-ui';
+
+const [current, setCurrent] = createSignal(0);
+
+const items = [
+  { title: 'Cart', description: 'Review items' },
+  { title: 'Shipping', description: 'Enter address' },
+  { title: 'Payment', description: 'Choose method' },
+  { title: 'Confirm', description: 'Complete order' },
+];
+
+<Steps
+  type="default"
+  color="primary"
+  items={items}
+  current={current}        // signal getter — NOT current()
+  setCurrent={setCurrent}  // signal setter
+/>
+
+{/* External navigation */}
+<button onClick={() => setCurrent(v => v - 1)} disabled={current() === 0}>Back</button>
+<button onClick={() => setCurrent(v => v + 1)} disabled={current() === items.length - 1}>Next</button>
+```
+
+### Navigation type
+
+```tsx
+<Steps
+  type="navigation"
+  color="success"
+  orientation="horizontal"
+  items={items}
+  current={current}
+  setCurrent={setCurrent}
+/>
+```
+
+### Dot type, vertical
+
+```tsx
+<Steps
+  type="dot"
+  color="info"
+  orientation="vertical"
+  items={items}
+  current={current}
+  setCurrent={setCurrent}
+/>
+```
+
+### Using `total` instead of `items`
+
+Generates numbered steps automatically (`Step 1`, `Step 2`, …):
+
+```tsx
+<Steps
+  type="default"
+  color="accent"
+  total={5}
+  current={current}
+  setCurrent={setCurrent}
+/>
+```
+
+### Disabled steps
+
+```tsx
+{/* Steps at index 1 and 2 cannot be clicked */}
+<Steps
+  type="default"
+  color="error"
+  items={items}
+  current={current}
+  setCurrent={setCurrent}
+  disabled={[1, 2]}
+/>
+```
+
+### Custom icon per step
+
+```tsx
+import UserIcon from 'lucide-solid/icons/user';
+import CreditCardIcon from 'lucide-solid/icons/credit-card';
+
+const items = [
+  { title: 'Profile', icon: <UserIcon size={16} /> },
+  { title: 'Billing', icon: <CreditCardIcon size={16} /> },
+  { title: 'Confirm' },
+];
+```
+
+> When a step has a custom `icon`, the icon always renders (even when `done`). Only steps **without** a custom icon show the checkmark when `done`.
+
+### `activeIndex` — force steps to active
+
+```tsx
+{/* Steps 0 and 2 are always shown as active, regardless of current */}
+<Steps
+  items={items}
+  current={current}
+  setCurrent={setCurrent}
+  activeIndex={[0, 2]}
+/>
+```
+
+### `onChange` callback
+
+```tsx
+<Steps
+  items={items}
+  current={current}
+  setCurrent={setCurrent}
+  onChange={index => console.log('Navigated to step', index)}
+/>
+```
+
+### Class customization
+
+```tsx
+<Steps
+  type="default"
+  color="primary"
+  items={items}
+  current={current}
+  setCurrent={setCurrent}
+  class={{
+    root: 'bg-base-200 rounded-xl p-4',
+    step: 'opacity-80 hover:opacity-100 transition-opacity',
+    title: 'text-xs uppercase tracking-wide',
+    icon: 'shadow-md',
+    connector: 'opacity-50',
+  }}
+/>
+```
+
+## Critical: `current` Must Be a Signal Getter
+
+The `current` prop is typed as `Accessor<number>` — it must be the signal **getter function**, not the evaluated value:
+
+```tsx
+const [step, setStep] = createSignal(0);
+
+// ✅ Correct
+<Steps current={step} setCurrent={setStep} ... />
+
+// ❌ Wrong — passes a static number, component won't react to changes
+<Steps current={step()} setCurrent={setStep} ... />
+```
+
+## Connector Animation
+
+Both `default` and `dot` types animate their connectors:
+
+- **Horizontal**: connector is a `flex` sibling element (not a child of the step). Its `::after` pseudo-element scales from 0 to 1 on the X axis when the connector element has `sui-step-done` or `sui-step-active` class.
+- **Vertical**: connector is a child inside the icon column. Its `::after` pseudo-element scales from 0 to 1 on the Y axis via a descendant selector on the parent step's status class.
+
+This is relevant when using `class.connector` overrides — only target the connector's base style, not `::after`.
+
+## Common Mistakes
+
+| Mistake | Fix |
+| --- | --- |
+| `current={step()}` | Pass the getter: `current={step}` |
+| Expecting `items` and `total` to merge | `items` takes full priority when non-empty — use one or the other |
+| Passing `class="..."` as a string | `class` is an object: `class={{ root: '...' }}` |
+| Custom `icon` not showing for `done` steps | Custom icons always render for done steps — only icon-less steps show a checkmark |
+| `disabled` not blocking navigation | `disabled` blocks `onClick` on the step itself, but not external `setCurrent` calls — validate in your own handler if needed |
+---
+
+## Component Conventions
+
+> **CSS encoding**: internal CSS classes use short encoded names (e.g. `st01`, `st02`) per project convention.
+
+> **Unique IDs**: if this component needs to generate HTML `id` attributes, always use `createUniqueId()` from `solid-js` — never `Math.random()` or `Date.now()`.

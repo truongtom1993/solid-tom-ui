@@ -1,0 +1,136 @@
+## COMPONENT IDENTITY
+- **Import**: `import { QrCode } from 'solid-tom-ui';`
+- **Export**: `QrCode` (named export)
+- **Framework**: SolidJS
+- **Purpose**: Renders a QR code onto an HTML `<canvas>` using the `qrcode` library; supports custom colors, logo overlay, and four status overlays (active, loading, expired, scanned)
+
+## When to use
+
+- Sharing URLs or text as a scannable QR code
+- Payment or authentication flows that need status feedback (loading, expired, scanned)
+- Branded QR codes with a center logo
+
+---
+
+## Prop Reference
+
+| Prop          | Type                                    | Default        | Description                                              |
+|---------------|-----------------------------------------|----------------|----------------------------------------------------------|
+| `value`       | `string`                                | —              | **Required.** Text / URL to encode.                      |
+| `size`        | `number`                                | `160`          | Canvas size in px (square).                              |
+| `color`       | `string` (hex)                          | `'#000000'`    | Foreground dot color.                                    |
+| `bgColor`     | `string` (hex)                          | `'#ffffff'`    | Background fill color.                                   |
+| `errorLevel`  | `'L' \| 'M' \| 'Q' \| 'H'`            | `'M'`          | Error correction level. Use `'H'` when adding a logo.   |
+| `logo`        | `QrCodeLogo`                            | —              | Optional center logo config (see below).                 |
+| `status`      | `'active' \| 'loading' \| 'expired' \| 'scanned'` | `'active'` | Controls overlay state.                     |
+| `expiredText` | `string`                                | `'QR code expired'` | Text shown in the expired overlay.               |
+| `onRefresh`   | `() => void`                            | —              | Called when user clicks the refresh button (expired).    |
+| `accentColor` | `BaseColorProps`                        | `'primary'`    | Color of the loading / expired overlay icon + text.      |
+| `class`       | `Partial<Record<SlotName, string>>`     | —              | Per-slot class overrides (see Slots below).              |
+
+### QrCodeLogo
+
+```ts
+interface QrCodeLogo {
+  src: string;         // Image URL
+  width?: number;      // Logo width in px (default: 20% of size)
+  height?: number;     // Logo height in px (default: same as width)
+  padding?: number;    // Background padding (default: 4)
+  background?: string; // Background color (default: '#ffffff')
+  borderRadius?: number; // Corner radius (default: 4)
+}
+```
+
+### Slots (`class` prop)
+
+| Slot           | Element                          |
+|----------------|----------------------------------|
+| `root`         | Outer wrapper `<div>`            |
+| `canvas`       | `<canvas>` element               |
+| `overlay`      | Status overlay `<div>`           |
+| `overlayIcon`  | Icon / button inside overlay     |
+| `overlayText`  | Text label inside expired overlay|
+
+---
+
+## Usage Patterns
+
+### Basic
+
+```tsx
+<QrCode value="https://solidjs.com" />
+```
+
+### Custom size and colors
+
+```tsx
+<QrCode
+  value="https://example.com"
+  size={200}
+  color="#7c3aed"
+  bgColor="#ede9fe"
+/>
+```
+
+### With logo (always use errorLevel="H")
+
+```tsx
+<QrCode
+  value="https://example.com"
+  size={180}
+  errorLevel="H"
+  logo={{
+    src: '/logo.svg',
+    width: 36,
+    height: 36,
+    padding: 6,
+    borderRadius: 8,
+  }}
+/>
+```
+
+### Status: loading
+
+```tsx
+<QrCode value="https://example.com" status="loading" accentColor="info" />
+```
+
+### Status: expired with refresh handler
+
+```tsx
+const [status, setStatus] = createSignal<QrCodeStatus>('expired');
+
+<QrCode
+  value="https://example.com"
+  status={status()}
+  expiredText="Scan timed out"
+  onRefresh={() => {
+    setStatus('loading');
+    fetchNewQrValue().then(() => setStatus('active'));
+  }}
+/>
+```
+
+### Status: scanned
+
+```tsx
+<QrCode value="https://example.com" status="scanned" />
+```
+
+### Reactive value (re-renders automatically)
+
+```tsx
+const [url, setUrl] = createSignal('https://solidjs.com');
+
+<QrCode value={url()} size={160} />
+<input value={url()} onInput={e => setUrl(e.currentTarget.value)} />
+```
+
+---
+
+## Known Gotchas
+
+- **Logo requires `errorLevel="H"`** — lower levels don't have enough redundancy to recover from the obscured center modules.
+- **Cross-origin logos** — ensure the logo image server sends `Access-Control-Allow-Origin` headers; otherwise the canvas `drawImage` call will taint the canvas and throw a security error.
+- **Empty value** — pass `' '` (a space) instead of `''` to avoid a qrcode library error when the value is empty.
+- **Canvas pixel density** — the canvas renders at 1× DPR by default. For retina displays you can scale `size` up and use CSS to constrain the rendered size.

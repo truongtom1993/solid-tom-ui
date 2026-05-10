@@ -1,0 +1,120 @@
+## COMPONENT IDENTITY
+- **Import**: `import { Hover3DImage } from 'solid-tom-ui';`
+- **Export**: `Hover3DImage` (named export)
+- **Framework**: SolidJS
+- **Purpose**: Interactive 3D tilt image card — responds to mouse movement with a CSS perspective effect; requires global `hover-3d` CSS class
+
+## TYPE SIGNATURE
+
+```typescript
+import { Hover3DImage } from 'solid-tom-ui';
+import type { Image } from 'solid-tom-ui';
+
+<Hover3DImage
+  image={Image}                                          // REQUIRED: image descriptor object
+  class?={Partial<Record<'root' | 'figure' | 'image', string>>}  // optional per-slot class overrides
+/>
+```
+
+### `Image` type (from `@/utils/helper`)
+```typescript
+type Image = {
+  src: string;      // image URL
+  alt?: string;     // alt text
+  class?: string;   // class on the <img> element
+  [key: string]: any; // other img attributes (width, height, loading, etc.)
+}
+```
+
+## INTERNAL STRUCTURE
+```
+div.hover-3d[class.root]
+  figure.rounded-2xl[class.figure]
+    img[...image props][class.image]   ← spreads all Image props onto <img>
+  div × 8                              ← required overlay divs for 3D CSS effect
+```
+> The 9 child divs (1 figure + 8 empty divs) are structural requirements for the CSS 3D hover effect. Do NOT remove or reorder them.
+
+## USAGE PATTERNS
+
+### Basic usage
+```tsx
+import { Hover3DImage } from 'solid-tom-ui';
+
+<Hover3DImage
+  image={{ src: '/images/product.jpg', alt: 'Product showcase' }}
+/>
+```
+
+### With width constraint on image
+```tsx
+<Hover3DImage
+  image={{
+    src: 'https://example.com/photo.jpg',
+    alt: '3D card',
+    class: 'w-[500px]',
+  }}
+/>
+```
+
+### With layout centering
+```tsx
+<Hover3DImage
+  class={{ root: 'mx-auto' }}
+  image={{ src: '/hero.jpg', alt: 'Hero image', class: 'w-full' }}
+/>
+```
+
+### With custom figure and image classes
+```tsx
+<Hover3DImage
+  image={{ src: '/banner.webp', alt: 'Banner', class: 'object-cover h-64' }}
+  class={{
+    root: 'max-w-md',
+    figure: 'shadow-xl',
+    image: 'rounded-xl',
+  }}
+/>
+```
+
+## CLASS SLOTS
+| Slot | Targets | Notes |
+|------|---------|-------|
+| `root` | `div.hover-3d` | Outermost wrapper — use for sizing/positioning |
+| `figure` | `figure` | Always has `rounded-2xl`; extend here for shadow, overflow, etc. |
+| `image` | `img` | Applied via `image.class` prop (not via `class.image` — `class.image` is not wired in current impl) |
+
+> **Note**: `class.image` slot is declared in the type but the `<img>` element only spreads the `image` object props. To add classes to the `<img>`, put them in `image.class`.
+
+## CONSTRAINTS
+- The component requires the `hover-3d` CSS utility class to be globally available. Ensure the project's global stylesheet includes the 3D hover animation rules.
+- The 8 empty `<div>` children inside `.hover-3d` are part of the CSS trick (grid/overlay for mouse tracking). They must not be conditionally removed.
+- This component is purely presentational — no internal state or events.
+
+## ANTI-PATTERNS
+```tsx
+// ❌ Missing required image prop
+<Hover3DImage />
+
+// ❌ Trying to class the img via class.image (not wired)
+<Hover3DImage image={{ src: '...' }} class={{ image: 'w-64' }} />
+// ✅ Correct: put image class inside the image object
+<Hover3DImage image={{ src: '...', class: 'w-64' }} />
+
+// ❌ Wrapping in another container that constrains height unexpectedly
+// ✅ Use class.root for sizing instead
+<Hover3DImage image={{ src: '...' }} class={{ root: 'w-72' }} />
+```
+
+## DECISION RULES
+- Use this component for hero images, product showcases, or any image that benefits from an interactive 3D tilt effect on hover.
+- Control the image size via `image.class` (e.g., `class: 'w-[400px]'`).
+- Control component placement/layout via `class.root`.
+- Control card shape/shadow via `class.figure`.
+---
+
+## Component Conventions
+
+> **CSS encoding**: internal CSS classes use short encoded names (e.g. `h301`, `h302`) per project convention.
+
+> **Unique IDs**: if this component needs to generate HTML `id` attributes, always use `createUniqueId()` from `solid-js` — never `Math.random()` or `Date.now()`.

@@ -1,0 +1,315 @@
+## COMPONENT IDENTITY
+- **Import**: `import { FloatButton } from 'solid-tom-ui';`
+- **Export**: `FloatButton` (named export)
+- **Framework**: SolidJS
+- **Purpose**: Fixed-position floating action button (FAB)
+
+---
+
+## TYPE SIGNATURE
+
+```ts
+// ─── Shared base ────────────────────────────────────────────────
+type FloatButtonBaseProps = {
+  color?: string; // any CSS color value or CSS variable; default: 'var(--color-warning)'
+  size?: number; // button diameter in px; default: 24
+  icon?: SolidComponent;
+  animate?: 'ripple' | 'pulse' | 'bounce' | 'heartBeat' | 'headShake' | 'swing' | 'jello' | 'none';
+  class?: string;
+  onClickOpen?: (e: MouseEvent) => void;
+  badge?: {
+    count?: number;
+    animate?: 'bounce' | 'heartBeat' | 'swing' | 'jello' | 'none';
+    class?: string;
+  };
+};
+
+type CloseIcon = {
+  label: string;
+  icon: SolidComponent;
+  color?: string;
+  onClickClose?: (e: MouseEvent) => void;
+};
+
+// ─── Discriminated union on `type` ──────────────────────────────
+type FloatButtonSingleProps = FloatButtonBaseProps & { type: 'single' };
+type FloatButtonDefaultProps = FloatButtonBaseProps & {
+  type: 'default';
+  actions?: SolidComponent[];
+  closeIcon?: CloseIcon;
+};
+type FloatButtonFlowerProps = FloatButtonBaseProps & {
+  type: 'flower';
+  actions?: SolidComponent[];
+  closeIcon?: CloseIcon;
+};
+
+export type FloatButtonProps =
+  | FloatButtonSingleProps
+  | FloatButtonDefaultProps
+  | FloatButtonFlowerProps;
+```
+
+---
+
+## DEFAULT VALUES (applied via `mergeProps`)
+
+| Prop              | Default                  |
+| ----------------- | ------------------------ |
+| `type`            | `'default'`              |
+| `color`           | `'var(--color-warning)'` |
+| `size`            | `24`                     |
+| `animate`         | `'none'`                 |
+| `closeIcon.label` | `'Close'`                |
+| `closeIcon.icon`  | `'X'`                    |
+
+---
+
+## PROP REFERENCE
+
+| Prop                     | Type                                                                                            | Required                        | Description                                                                 |
+| ------------------------ | ----------------------------------------------------------------------------------------------- | ------------------------------- | --------------------------------------------------------------------------- |
+| `type`                   | `'single' \| 'default' \| 'flower'`                                                             | ✅ YES                          | Controls which FAB variant is rendered (see Type Variants below)            |
+| `icon`                   | `SolidComponent`                                                                                | ❌ NO                           | Icon rendered inside the main trigger button                                |
+| `color`                  | `string`                                                                                        | ❌ NO                           | Background color of the main button — any CSS color or CSS variable         |
+| `size`                   | `number`                                                                                        | ❌ NO                           | Diameter of main button in px (applied to both `width` and `height`)        |
+| `animate`                | `'ripple' \| 'pulse' \| 'bounce' \| 'heartBeat' \| 'headShake' \| 'swing' \| 'jello' \| 'none'` | ❌ NO                           | Infinite animation applied to the main button                               |
+| `class`                  | `string`                                                                                        | ❌ NO                           | Extra Tailwind classes on the root wrapper div (use for position overrides) |
+| `onClickOpen`            | `(e: MouseEvent) => void`                                                                       | ❌ NO                           | Click handler on the main button                                            |
+| `badge.count`            | `number`                                                                                        | ❌ NO                           | Number shown in the red badge bubble on the main button                     |
+| `badge.animate`          | `'bounce' \| 'heartBeat' \| 'swing' \| 'jello' \| 'none'`                                       | ❌ NO                           | Animation applied to the badge bubble                                       |
+| `badge.class`            | `string`                                                                                        | ❌ NO                           | Extra classes on the badge div (e.g. override background color)             |
+| `actions`                | `SolidComponent[]`                                                                              | ❌ NO (`default`/`flower` only) | Array of action items shown when FAB is opened                              |
+| `closeIcon.label`        | `string`                                                                                        | ❌ NO (`default`/`flower` only) | Text label next to the close button (shown in `default` type)               |
+| `closeIcon.icon`         | `SolidComponent`                                                                                | ❌ NO (`default`/`flower` only) | Icon inside the close button                                                |
+| `closeIcon.color`        | `string`                                                                                        | ❌ NO                           | Color override for the close button                                         |
+| `closeIcon.onClickClose` | `(e: MouseEvent) => void`                                                                       | ❌ NO                           | Click handler on the close button                                           |
+
+---
+
+## TYPE VARIANTS — Detailed behavior per `type`
+
+### `type="single"`
+
+- Renders **only** the main trigger button — no menu, no close button, no actions
+- `actions` and `closeIcon` props are **unavailable** (TypeScript enforces this)
+- Clicking is handled entirely by `onClickOpen`
+- Best for: back-to-top, open chat, single-action triggers
+
+```tsx
+<FloatButton
+  type="single"
+  size={40}
+  icon={<ArrowUp color="white" size={20} />}
+  color="var(--color-primary)"
+  animate="heartBeat"
+  onClickOpen={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+  badge={{ count: 3, animate: 'bounce' }}
+/>
+```
+
+---
+
+### `type="default"`
+
+- Renders main button + **vertical list menu** of action items
+- Menu opens on hover/focus (`tabIndex={0}` on inner div)
+- `actions` array: each item renders as `<div class="flex gap-2">{item}</div>` — items can be any JSX (Button, custom div, etc.)
+- `closeIcon.label` is shown as text **next to** the close button (unique to this type)
+- No hard limit on `actions` length
+
+```tsx
+<FloatButton
+  type="default"
+  size={40}
+  icon={<Plus color="white" size={20} />}
+  color="red"
+  closeIcon={{
+    label: 'Close',
+    icon: 'X',
+    onClickClose: () => console.log('closed'),
+  }}
+  actions={[
+    <Button variant="solid" color="neutral" icon={<Activity color="white" size={20} />}>
+      Activity
+    </Button>,
+    <div class="flex items-center gap-2">
+      <span>With Label</span>
+      <Button variant="solid" color="error" icon="C" shape="square" />
+    </div>,
+  ]}
+  badge={{ count: 500, class: 'bg-primary' }}
+/>
+```
+
+---
+
+### `type="flower"`
+
+- Renders main button + **radial/flower menu** of action items spreading outward
+- Root div gets additional class `fab-flower`
+- `actions` array: items rendered **directly** without a wrapping flex div
+- **HARD LIMIT: maximum 4 items in `actions`** — items beyond index 3 are silently dropped with a `console.warn`
+- Use `shape="circle"` Buttons inside `actions` to preserve the circular flower layout
+
+```tsx
+<FloatButton
+  type="flower"
+  size={40}
+  icon={<Plus color="white" size={20} />}
+  color="orange"
+  closeIcon={{ label: 'Close', icon: 'X', onClickClose: () => {} }}
+  actions={[
+    <Button variant="solid" color="neutral" shape="circle" icon="A" />,
+    <Button variant="solid" color="primary" shape="circle" icon="B" />,
+    <Button variant="solid" color="error" shape="circle" icon="C" />,
+    <Button variant="solid" color="accent" shape="circle" icon="D" />,
+    // ⛔ 5th item would be dropped — console.warn fired
+  ]}
+/>
+```
+
+---
+
+## ANIMATION REFERENCE
+
+### Main button (`animate` prop)
+
+| Value         | CSS class applied   |
+| ------------- | ------------------- |
+| `'ripple'`    | `animate-ripple`    |
+| `'pulse'`     | `animate-pulse`     |
+| `'bounce'`    | `animate-bounce`    |
+| `'heartBeat'` | `animate-heartBeat` |
+| `'headShake'` | `animate-headShake` |
+| `'swing'`     | `animate-swing`     |
+| `'jello'`     | `animate-jello`     |
+| `'none'`      | _(no class)_        |
+
+### Badge (`badge.animate` prop)
+
+Applies `animate-{value}` class directly to the badge div. Supports: `bounce`, `heartBeat`, `swing`, `jello`, `none`.
+
+---
+
+## BADGE SIZING — Automatic width adjustment
+
+The badge width adapts to `badge.count` automatically:
+| Count range | Applied classes |
+|-----------------|--------------------------------------|
+| `< 100` | `w-5` (fixed circle) |
+| `100 – 999` | `px-1` (pill shape) |
+| `1000 – 9999` | `px-1 translate-x-1 -translate-y-1` |
+| `≥ 10000` | `px-1 translate-x-2` |
+
+Agents do NOT need to handle badge sizing — it is automatic.
+
+---
+
+## POSITIONING
+
+- The component renders with class `fab` by default. CSS for `.fab` is defined in `mockup.style.css` / project global styles.
+- Default position is typically `bottom-right` (defined by `.fab` global CSS).
+- To override position, use the `class` prop with Tailwind positioning utilities:
+
+```tsx
+// Move to bottom-left
+<FloatButton type="single" class="bottom-10 left-10" ... />
+
+// Move to top-right
+<FloatButton type="single" class="top-10 right-10" ... />
+```
+
+---
+
+## BEHAVIOR NOTES FOR AGENTS
+
+1. **`type` is a discriminated union** — TypeScript will error if `actions` or `closeIcon` are passed to `type="single"`. Only pass those props to `type="default"` or `type="flower"`.
+
+2. **Menu open/close is CSS-driven** — the `.fab` class uses CSS (`:focus-within`, `:hover`) to toggle the menu visibility. There is no JS open/close state. `onClickOpen` is only an additional callback, not the toggle mechanism.
+
+3. **`color` sets both `background-color` and CSS custom properties** — internally it sets `--innner-color` and `--btn-color` on the button's inline style. Any value valid in CSS works: named colors, hex, rgb, hsl, `var(--css-variable)`.
+
+4. **`size` is in pixels as a `number`** — internally converted to `"${size}px"` string. Do NOT pass a string like `"40px"`.
+
+5. **`flower` type silently drops items beyond index 3** — a `console.warn` is fired but no error is thrown. Always cap `actions` at 4 items for `type="flower"`.
+
+6. **`actions` in `default` type wrap each item in `<div class="flex gap-2">`** — items can be any JSX shape (Button, span+Button, div, etc.). Items in `flower` type are rendered without any wrapper.
+
+7. **Badge only renders when `badge.count` is truthy** — passing `badge={{ count: 0 }}` will NOT render a badge (0 is falsy).
+
+8. **Main button always has `shape="circle"`** — this cannot be changed via props.
+
+---
+
+## COMMON MISTAKES TO AVOID
+
+| Mistake                                             | Correct approach                                                      |
+| --------------------------------------------------- | --------------------------------------------------------------------- |
+| Passing `actions` to `type="single"`                | `single` has no menu — use `type="default"` or `type="flower"`        |
+| Passing `size="40px"` (string)                      | `size` is a `number` — pass `size={40}`                               |
+| Adding more than 4 items to `type="flower"` actions | Cap at 4 — excess items are silently dropped                          |
+| Using non-circle Buttons in `type="flower"` actions | Always use `shape="circle"` for flower layout integrity               |
+| Expecting `onClickOpen` to toggle the menu          | Menu toggle is CSS-only; `onClickOpen` is a side-effect callback only |
+| Setting `badge={{ count: 0 }}` expecting a badge    | `0` is falsy — badge will not render; use a positive number           |
+| Passing CSS string to `size`                        | `size` expects `number` (px unit is appended internally)              |
+
+---
+
+## FULL EXAMPLE — All three variants
+
+```tsx
+import { FloatButton, Button } from 'solid-tom-ui';
+import { Plus, ArrowUp, Activity } from 'lucide-solid';
+
+// 1. Single — one-action FAB
+<FloatButton
+  type="single"
+  size={40}
+  icon={<ArrowUp color="white" size={20} />}
+  color="var(--color-primary)"
+  animate="bounce"
+  onClickOpen={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+/>
+
+// 2. Default — vertical menu
+<FloatButton
+  type="default"
+  size={44}
+  icon={<Plus color="white" size={22} />}
+  color="#e74c3c"
+  animate="ripple"
+  closeIcon={{ label: 'Close', icon: 'X', onClickClose: () => {} }}
+  actions={[
+    <Button variant="solid" color="neutral" icon={<Activity color="white" size={18} />}>
+      Analytics
+    </Button>,
+    <Button variant="solid" color="primary">
+      Settings
+    </Button>,
+  ]}
+  badge={{ count: 12, animate: 'heartBeat', class: 'bg-error' }}
+/>
+
+// 3. Flower — radial menu (max 4 actions, circle buttons)
+<FloatButton
+  type="flower"
+  size={44}
+  icon={<Plus color="white" size={22} />}
+  color="orange"
+  closeIcon={{ label: 'Close', icon: 'X', onClickClose: () => {} }}
+  actions={[
+    <Button variant="solid" color="neutral" shape="circle" icon="A" />,
+    <Button variant="solid" color="primary" shape="circle" icon="B" />,
+    <Button variant="solid" color="error"   shape="circle" icon="C" />,
+    <Button variant="solid" color="accent"  shape="circle" icon="D" />,
+  ]}
+/>
+```
+---
+
+## Component Conventions
+
+> **CSS encoding**: internal CSS classes use short encoded names (e.g. `fb01`, `fb02`) per project convention.
+
+> **Unique IDs**: if this component needs to generate HTML `id` attributes, always use `createUniqueId()` from `solid-js` — never `Math.random()` or `Date.now()`.

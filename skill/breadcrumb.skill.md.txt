@@ -1,0 +1,177 @@
+## COMPONENT IDENTITY
+- **Import**: `import { Breadcrumb } from 'solid-tom-ui';`
+- **Export**: `Breadcrumb` (named export)
+- **Framework**: SolidJS
+- **Purpose**: Navigation trail showing hierarchy of current page location
+
+## TYPE SIGNATURE
+
+```typescript
+import { Breadcrumb } from 'solid-tom-ui';
+
+type BreadcrumbProps = {
+  items: SolidComponent[];          // REQUIRED: array of items (string | JSXElement | () => JSX)
+  separate?: SolidComponent;        // Custom separator between items (default: CSS chevron arrow)
+  class?: Partial<Record<'root' | 'item', string>>;  // Scoped custom classes
+  onItemClick?: (e: MouseEvent) => void;  // Click handler for any item
+};
+```
+
+## KEY RULES
+- `items` is the **only required prop**
+- Items are rendered in order: `items[0]` → separator → `items[1]` → ... → `items[n-1]`
+- Separator is inserted **between** items, **not after the last** item
+- Each item can be a plain string or any JSXElement (supports icons, links, styled content)
+- `onItemClick` fires for **every** item clicked — use the event target to identify which item
+
+## USAGE PATTERNS
+
+### Minimal — plain text items
+```tsx
+<Breadcrumb items={['Home', 'Products', 'Electronics', 'Laptops']} />
+```
+
+### Custom separator
+```tsx
+// Text separator
+<Breadcrumb
+  items={['Home', 'Settings', 'Profile']}
+  separate={<span class="mx-2 text-gray-400">/</span>}
+/>
+
+// Icon separator
+<Breadcrumb
+  items={['Home', 'Settings', 'Profile']}
+  separate={<DynamicIcon name="chevron-right" size={14} class="mx-1 text-gray-400" />}
+/>
+
+// Dash separator
+<Breadcrumb
+  items={['Section 1', 'Section 2', 'Section 3']}
+  separate={<div class="mx-2">-</div>}
+/>
+```
+
+### With icons in items
+```tsx
+import { DynamicIcon } from 'solid-tom-ui';
+
+<Breadcrumb
+  items={[
+    <div class="flex items-center gap-2">
+      <DynamicIcon name="home" size={16} />
+      Home
+    </div>,
+    <div class="flex items-center gap-2">
+      <DynamicIcon name="folder" size={16} />
+      Documents
+    </div>,
+    <div class="flex items-center gap-2">
+      <DynamicIcon name="file" size={16} />
+      report.pdf
+    </div>,
+  ]}
+/>
+```
+
+### With click handler
+```tsx
+const [activePath, setActivePath] = createSignal<string[]>(['Home', 'Products']);
+
+<Breadcrumb
+  items={activePath()}
+  onItemClick={(e) => {
+    const clickedText = (e.target as HTMLElement).textContent;
+    console.log('Clicked breadcrumb item:', clickedText);
+    // Handle navigation here
+  }}
+/>
+```
+
+### Custom CSS classes
+```tsx
+<Breadcrumb
+  items={['Home', 'Library', 'Data']}
+  class={{
+    root: 'bg-gray-100 rounded-lg px-4 py-2',
+    item: 'text-blue-600 hover:text-blue-800 font-medium',
+  }}
+/>
+```
+
+### Clickable items as anchor tags
+```tsx
+<Breadcrumb
+  items={[
+    <a href="/" class="hover:underline">Home</a>,
+    <a href="/products" class="hover:underline">Products</a>,
+    <span class="text-gray-500">Current Page</span>,
+  ]}
+/>
+```
+
+## DECISION RULES
+
+**When to use a custom separator:**
+- Default: use the built-in CSS chevron (no `separate` prop needed)
+- Brand-specific style: pass a custom icon or character via `separate`
+- Minimal/flat UI: use `<span class="mx-2">/</span>`
+
+**Item content strategy:**
+- Plain navigation labels → plain strings
+- Route with icon → JSXElement with icon + label
+- Clickable items → wrap in `<a>` tags inside the JSX items, OR use `onItemClick`
+- Last item (current page) → typically rendered non-clickable / different style
+
+**When NOT to use Breadcrumb:**
+- If hierarchy depth is always 1 level → use a back button instead
+- If items are dynamic and represent tabs or steps → use a stepper or tabs component
+
+## COMMON PATTERNS IN APPS
+
+### Dynamic breadcrumb from route
+```tsx
+const routes = () => [
+  { label: 'Home', href: '/' },
+  { label: 'Products', href: '/products' },
+  { label: currentProduct().name, href: null },
+];
+
+<Breadcrumb
+  items={routes().map(r =>
+    r.href
+      ? <a href={r.href} class="hover:underline">{r.label}</a>
+      : <span>{r.label}</span>
+  )}
+/>
+```
+
+### File path navigator
+```tsx
+const pathParts = () => currentPath().split('/').filter(Boolean);
+
+<Breadcrumb
+  items={['Root', ...pathParts()]}
+  separate={<span class="mx-1 text-gray-400">/</span>}
+  onItemClick={(e) => navigateToSegment(e)}
+/>
+```
+
+## ANTI-PATTERNS
+```tsx
+// ❌ Empty items array — renders nothing useful
+<Breadcrumb items={[]} />
+
+// ❌ Passing a separator that includes the chevron logic itself when default works fine
+<Breadcrumb items={items} separate={<span>›</span>} />  // redundant if default style fits
+
+// ✅ Use default separator when it fits the design system
+<Breadcrumb items={items} />
+```
+---
+
+## Component Conventions
+
+> **CSS encoding**: internal CSS classes use short encoded names (e.g. `bc01`, `bc02`) per project convention.
+
+> **Unique IDs**: if this component needs to generate HTML `id` attributes, always use `createUniqueId()` from `solid-js` — never `Math.random()` or `Date.now()`.
