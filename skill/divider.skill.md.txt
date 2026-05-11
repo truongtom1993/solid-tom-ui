@@ -1,0 +1,151 @@
+## COMPONENT IDENTITY
+- **Import**: `import { Divider } from 'solid-tom-ui';`
+- **Export**: `Divider` (named export)
+- **Framework**: SolidJS
+- **Purpose**: Flexible visual separator — renders a plain line or a line with centered content (text, icons, badges); supports horizontal and vertical orientations
+
+## Props
+
+| Prop          | Type                                          | Default        | Description                                                                 |
+| ------------- | --------------------------------------------- | -------------- | --------------------------------------------------------------------------- |
+| `orientation` | `'horizontal' \| 'vertical'`                 | `'horizontal'` | Direction of the dividing line                                              |
+| `variant`     | `'solid' \| 'dashed' \| 'dotted'`            | `'solid'`      | Border style of the line                                                    |
+| `align`       | `'start' \| 'center' \| 'end'`               | `'center'`     | Position of children content along the line (only applies when children is present) |
+| `thickness`   | `1 \| 2 \| 3 \| 4`                          | `1`            | Line thickness in pixels                                                    |
+| `color`       | `BaseColorProps`                              | —              | Màu hệ thống cho đường kẻ và text content — dùng `--color` CSS variable    |
+| `class`       | `Partial<Record<'root' \| 'line' \| 'content', string>>` | — | Override classes for individual slots (see Class Slots below)   |
+| `children`    | `JSX.Element`                                 | —              | Content rendered between the two line segments                              |
+
+## Class Slots
+
+`Divider` exposes a unified `class` prop with three named slots:
+
+| Slot      | Element                                      | When available     |
+| --------- | -------------------------------------------- | ------------------ |
+| `root`    | `<hr>` (plain) or `<div>` (with children)   | Always             |
+| `line`    | Both leading and trailing line segments      | Only with children |
+| `content` | `<span>` wrapping children content          | Only with children |
+
+> **CSS encoding**: internal CSS classes use short encoded names (e.g. `dv01`, `dv02`) per project convention.
+
+## Render Behavior
+
+The component has two distinct render paths:
+
+- **No children** → renders a single `<hr>` element (plain line, zero markup overhead).
+- **With children** → renders a `<div>` containing a leading line, a content `<span>`, and a trailing line. The `align` prop controls how flex space is distributed between the two segments.
+
+## Basic Usage
+
+```tsx
+// Plain horizontal line
+<Divider />
+
+// Dashed / dotted
+<Divider variant="dashed" />
+<Divider variant="dotted" />
+
+// With label
+<Divider>OR</Divider>
+<Divider>Section Title</Divider>
+```
+
+## Alignment
+
+```tsx
+<Divider align="start">Left-aligned label</Divider>
+<Divider align="center">Center (default)</Divider>
+<Divider align="end">Right-aligned label</Divider>
+```
+
+## Thickness
+
+```tsx
+<Divider thickness={1}>1px (default)</Divider>
+<Divider thickness={2}>2px</Divider>
+<Divider thickness={3}>3px</Divider>
+<Divider thickness={4}>4px</Divider>
+```
+
+## Custom Line Color
+
+Use `class={{ line: '...' }}` to override the line color. This class is applied to **both** line segments.
+
+```tsx
+<Divider class={{ line: 'border-primary/50' }}>Primary</Divider>
+<Divider class={{ line: 'border-error/60' }} variant="dotted">Error</Divider>
+<Divider class={{ line: 'border-amber-400/60' }} thickness={2}>Amber</Divider>
+```
+
+## Custom Children (Icons, Badges)
+
+Any JSX can be passed as children:
+
+```tsx
+// Badge
+<Divider class={{ line: 'border-primary/40' }}>
+  <span class="bg-primary/10 text-primary rounded-full px-3 py-0.5 text-xs font-semibold">
+    New Section
+  </span>
+</Divider>
+
+// Icon + text
+<Divider class={{ line: 'border-success/40' }} variant="dashed">
+  <span class="text-success flex items-center gap-1.5 text-sm font-medium">
+    <CheckIcon class="h-3.5 w-3.5" />
+    Completed
+  </span>
+</Divider>
+```
+
+## Vertical Divider
+
+Use `orientation="vertical"` to create a vertical separator inside a flex row. The parent **must** use `items-stretch` (or set an explicit height) for the line to fill the available space.
+
+```tsx
+// Plain vertical line between items
+<div class="flex items-stretch gap-4">
+  <span>Left</span>
+  <Divider orientation="vertical" />
+  <span>Right</span>
+</div>
+
+// Vertical with label (parent needs an explicit height)
+<div class="flex h-32 items-stretch gap-4">
+  <span class="flex items-center">Panel A</span>
+  <Divider orientation="vertical" variant="dashed">OR</Divider>
+  <span class="flex items-center">Panel B</span>
+</div>
+
+// Colored vertical line
+<Divider orientation="vertical" class={{ line: 'border-primary/40' }} />
+```
+
+## Real-world Example — Login Form
+
+```tsx
+<div class="space-y-4">
+  <button class="btn btn-primary w-full">Continue with Google</button>
+  <button class="btn btn-neutral btn-outline w-full">Continue with GitHub</button>
+  <Divider>OR</Divider>
+  <input class="input input-bordered w-full" placeholder="Email address" />
+  <button class="btn btn-primary w-full">Sign in</button>
+</div>
+```
+
+## Accessibility
+
+- Both render paths emit `role="separator"` and `aria-orientation` matching the `orientation` prop.
+- Content inside `children` is wrapped in a `<span>` with `select-none` to prevent accidental text selection of decorative labels.
+
+## Common Mistakes
+
+| Mistake | Fix |
+| --- | --- |
+| Using `class="border-primary"` as string | `class` is now a slot object — use `class={{ root: '...' }}` |
+| Coloring lines without effect | Use `class={{ line: 'border-primary/50' }}`, not `class={{ root: '...' }}` |
+| Vertical divider not visible | Ensure parent has `items-stretch` or a fixed height |
+| `align` has no effect | `align` only works when `children` is provided |
+| `line` / `content` slots not applying | These slots only apply when `children` is present |
+
+> **Unique IDs**: if this component needs to generate HTML `id` attributes, always use `createUniqueId()` from `solid-js` — never `Math.random()` or `Date.now()`.

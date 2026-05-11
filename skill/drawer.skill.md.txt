@@ -1,0 +1,157 @@
+## COMPONENT IDENTITY
+- **Import**: `import { Drawer } from 'solid-tom-ui';`
+- **Exports**: `Drawer` (named export), `DrawerType`, `DrawerPlacement` (type exports)
+- **Framework**: SolidJS
+- **Purpose**: Slide-in panel (drawer) from any edge (left/right/top/bottom) with backdrop overlay, optional blur, close button, and header/footer slots
+
+---
+
+## PROP REFERENCE (`DrawerType`)
+
+| Prop | Type | Default | Description |
+|---|---|---|---|
+| `open` | `boolean` | — | Controls visibility. Required. |
+| `onClose` | `() => void` | `() => {}` | Callback fired on close (overlay click, X button). Must set `open` to `false`. |
+| `placement` | `DrawerPlacement` | `'left'` | Which side the panel slides in from. |
+| `width` | `string` | — | Panel width for `left`/`right` placements. Any CSS value (`'320px'`, `'40vw'`). |
+| `height` | `string` | — | Panel height for `top`/`bottom` placements. Any CSS value (`'300px'`, `'50vh'`). |
+| `mask` | `boolean` | `true` | Show backdrop overlay. |
+| `maskBlur` | `boolean` | `false` | Add `backdrop-blur` to overlay. |
+| `closable` | `boolean` | `true` | Show the X close button in the top-right corner. |
+| `closeOnOutsideClick` | `boolean` | `true` | Click overlay to close. |
+| `header` | `SolidComponent` | — | JSX rendered in the header slot (with bottom border). |
+| `body` | `SolidComponent` | — | JSX rendered in the scrollable body slot. |
+| `footer` | `SolidComponent` | — | JSX rendered in the footer slot (with top border). |
+| `preRender` | `boolean` | `false` | Always mount in DOM; hide with `display:none` when closed. |
+| `class` | `Partial<Record<'wrapper'\|'panel'\|'header'\|'body'\|'footer'\|'closeButton', string>>` | — | Override classes on specific elements. |
+
+### `DrawerPlacement` values
+
+```ts
+'left' | 'right' | 'top' | 'bottom'
+```
+
+---
+
+## USAGE PATTERNS
+
+### 1. Minimal
+
+```tsx
+const [open, setOpen] = createSignal(false);
+
+<Button onClick={() => setOpen(true)}>Open</Button>
+<Drawer
+  open={open()}
+  onClose={() => setOpen(false)}
+  body={() => <p>Drawer content</p>}
+/>
+```
+
+### 2. With header, body, footer
+
+```tsx
+<Drawer
+  open={open()}
+  onClose={() => setOpen(false)}
+  placement="right"
+  header={() => <span class="text-base font-semibold">Settings</span>}
+  body={() => <p>Body content here.</p>}
+  footer={() => (
+    <div class="flex justify-end gap-2">
+      <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+      <Button variant="solid" color="primary" onClick={handleSave}>Save</Button>
+    </div>
+  )}
+/>
+```
+
+### 3. Custom size
+
+```tsx
+// Horizontal drawer
+<Drawer open={open()} onClose={() => setOpen(false)} placement="left" width="480px" ... />
+
+// Vertical drawer
+<Drawer open={open()} onClose={() => setOpen(false)} placement="bottom" height="360px" ... />
+```
+
+### 4. No overlay
+
+```tsx
+<Drawer
+  open={open()}
+  onClose={() => setOpen(false)}
+  mask={false}
+  closeOnOutsideClick={false}
+  body={() => <p>Only closable via X button.</p>}
+/>
+```
+
+### 5. Blur overlay
+
+```tsx
+<Drawer
+  open={open()}
+  onClose={() => setOpen(false)}
+  maskBlur
+  body={() => <p>Background is blurred.</p>}
+/>
+```
+
+### 6. preRender — preserve state between open/close
+
+```tsx
+<Drawer
+  open={open()}
+  onClose={() => setOpen(false)}
+  preRender={true}
+  body={() => <ExpensiveForm />}
+/>
+```
+
+### 7. Custom class overrides
+
+```tsx
+<Drawer
+  open={open()}
+  onClose={() => setOpen(false)}
+  class={{ panel: 'rounded-r-2xl', header: 'bg-primary/5' }}
+  body={() => <div />}
+/>
+```
+
+---
+
+## BEHAVIORAL RULES
+
+- **Fully controlled**: parent must hold the `open` signal and update it in `onClose`.
+- **Portal rendering**: panel renders in `document.body` via `ZIndex` → unaffected by ancestor `overflow:hidden`.
+- **Scroll lock**: body scroll is blocked while drawer is open (via `ZIndex blockScroll`).
+- **Z-index**: uses `ZIndexType.MODAL` (base 1000) — same stacking group as Modal.
+- **Animation**: CSS `@keyframes` slide-in on mount. No close animation (panel unmounts on `open=false` when `preRender=false`).
+- **`preRender=false`** (default): component unmounts when closed → state resets on next open.
+- **`preRender=true`**: component stays mounted → state preserved; hidden via `display:none`.
+
+---
+
+## DO / DON'T
+
+**DO**
+- Always pair `open={signal()}` with `onClose={() => setSignal(false)}`.
+- Pass `body`, `header`, `footer` as functions `() => <JSX>` to defer evaluation.
+- Use `width` for left/right drawers and `height` for top/bottom drawers.
+- Import from barrel: `import { Drawer } from 'solid-tom-ui'`.
+
+**DON'T**
+- Don't leave `onClose` as a no-op — the drawer won't close reactively.
+- Don't use `ComponentDrawer` directly unless you need the raw unguarded component.
+- Don't set both `width` and `height` — only one applies based on `placement`.
+- Don't import `DrawerExample` in production — it's a demo-only component.
+---
+
+## Component Conventions
+
+> **CSS encoding**: internal CSS classes use short encoded names (e.g. `dr01`, `dr02`) per project convention.
+
+> **Unique IDs**: if this component needs to generate HTML `id` attributes, always use `createUniqueId()` from `solid-js` — never `Math.random()` or `Date.now()`.

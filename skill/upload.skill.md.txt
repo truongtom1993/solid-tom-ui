@@ -1,0 +1,358 @@
+## COMPONENT IDENTITY
+- **Import**: `import { Upload } from 'solid-tom-ui';`
+- **Exports**: `Upload` (main), `Upload.Dragger` (sub-component)
+- **Framework**: SolidJS
+- **Purpose**: Feature-rich file upload — button-triggered and drag-and-drop modes, multiple list display types, file validation, progress tracking, image preview, custom request handling
+
+---
+
+## Props
+
+### Shared Props (both `Upload` and `Upload.Dragger`)
+
+| Prop             | Type                                        | Default     | Description                                                   |
+| ---------------- | ------------------------------------------- | ----------- | ------------------------------------------------------------- |
+| `multiple`       | `boolean`                                   | `true`      | Allow selecting multiple files at once                        |
+| `directory`      | `boolean`                                   | `false`     | Upload an entire folder (sets `showClearAll` true)            |
+| `accept`         | `string`                                    | —           | MIME types filter, e.g. `"image/*,.pdf"`                      |
+| `listType`       | `'text' \| 'picture' \| 'picture-card'`    | `'text'`    | How the file list is rendered                                 |
+| `showUploadList` | `boolean`                                   | `true`      | Whether to show the file list below the trigger               |
+| `maxCount`       | `number`                                    | —           | Max number of files; trigger is hidden when reached           |
+| `maxFileSize`    | `number`                                    | —           | Max size per file in **bytes**. Rejected batches fire `onError` |
+| `maxTotalSize`   | `number`                                    | —           | Max combined size of all files in **bytes**                   |
+| `showClearAll`   | `boolean`                                   | `false`     | Show a "Clear all" button (auto-enabled for `directory`)      |
+| `showTooltip`    | `boolean`                                   | `false`     | Show tooltip with full filename in the `text` list            |
+| `onChange`       | `(info: UploadChangeInfo) => void`          | —           | Called on file add, progress update, and completion           |
+| `onError`        | `(error: UploadValidationError) => void`    | —           | Called when a batch fails validation (before upload starts)   |
+| `customRequest`  | `UploadCustomRequest`                       | —           | Override the default simulated upload                         |
+| `class`          | `string \| UploadClassConfig`               | —           | String → applied to wrapper. Object → per-element overrides   |
+| `errorMessage`   | `JSXElement`                                | —           | JSX slot rendered inside the component when an error occurs   |
+| `children`       | `JSXElement`                                | —           | Trigger content (`Upload` only); also works as custom dragger content |
+
+### `Upload.Dragger`-only Props
+
+| Prop   | Type         | Default                                     | Description              |
+| ------ | ------------ | ------------------------------------------- | ------------------------ |
+| `hint` | `string`     | `"Support for a single or bulk upload"`     | Subtitle below main text |
+| `icon` | `JSXElement` | `<CloudUpload />` (lucide)                  | Icon above the text      |
+
+---
+
+## Key Types
+
+```ts
+type UploadErrorType = 'maxCount' | 'maxFileSize' | 'maxTotalSize' | 'accept'
+
+interface UploadValidationError {
+  type: UploadErrorType
+  file?: File          // the first file in the rejected batch (when relevant)
+  message: string      // human-readable description
+}
+
+interface UploadFile {
+  uid: string
+  name: string
+  size: number                            // bytes
+  type: string                            // MIME type
+  status: 'uploading' | 'done' | 'error' | 'removed'
+  thumbUrl?: string                       // object URL (images only)
+  originFile: File                        // original File object
+  percent?: number                        // 0–100 (emitted in onChange during progress)
+  error?: Error
+  dimensions?: { width: number; height: number }  // images only
+}
+
+interface UploadChangeInfo {
+  file: UploadFile    // the file that triggered the event
+  fileList: UploadFile[]
+}
+
+// customRequest signature
+type UploadCustomRequest = (options: {
+  file: File
+  onSuccess: (response?: unknown) => void
+  onError: (error: Error) => void
+  onProgress: (percent: number) => void
+}) => (() => void) | void   // return a cancel fn to support abort
+```
+
+---
+
+## UploadClassConfig — Per-element Class Overrides
+
+Pass an `UploadClassConfig` object to `class` to style individual elements inside the component. Each key is optional and its value is merged with the default CSS class using `cn()`.
+
+```ts
+interface UploadClassConfig {
+  // Layout
+  wrapper?:       string   // outer container
+  // Dragger
+  dragger?:       string   // dragger zone div
+  draggerIcon?:   string   // icon wrapper inside dragger
+  draggerTitle?:  string   // main text in dragger
+  draggerHint?:   string   // hint/subtitle in dragger
+  // Shared header
+  listHeader?:    string   // header row (count + clear btn)
+  listCount?:     string   // "N files" text
+  clearBtn?:      string   // "Clear all" button
+  // Text list
+  textList?:      string   // text list wrapper
+  textItem?:      string   // each row in text list
+  textBadge?:     string   // file-type badge (PDF/IMG/DOC...)
+  textName?:      string   // filename span
+  textSize?:      string   // file size span
+  // Picture list
+  pictureList?:     string
+  pictureItem?:     string
+  pictureThumb?:    string   // 52×52 thumbnail wrapper
+  pictureIcon?:     string   // fallback icon wrapper
+  pictureInfo?:     string   // name/size/progress column
+  pictureActions?:  string   // actions column
+  progressTrack?:   string   // progress bar track (picture & text lists)
+  progressFill?:    string   // progress bar fill (picture & text lists)
+  // Picture-card
+  cardGrid?:   string   // flex grid wrapper
+  card?:       string   // each 96×96 card
+  cardImg?:    string   // img inside card
+  cardIcon?:   string   // fallback icon inside card
+  cardAdd?:    string   // the "Upload" add button card
+  // Shared buttons
+  removeBtn?:  string
+  actionBtn?:  string   // preview button
+  // Error message
+  errorMessage?: string  // container div of the errorMessage slot
+}
+```
+
+> **Note**: There are no separate `textProgressBar` / `textProgressTrack` / `textProgressFill` keys.
+> The shared `progressTrack` / `progressFill` keys apply to both the text and picture lists.
+
+---
+
+## Usage Examples
+
+### Basic Button Upload
+
+```tsx
+<Upload accept="image/*,.pdf" onChange={({ file, fileList }) => console.log(file, fileList)}>
+  <Button>Click to Upload</Button>
+</Upload>
+```
+
+### Single File Only
+
+```tsx
+<Upload multiple={false} maxCount={1}>
+  <Button>Select File</Button>
+</Upload>
+```
+
+### Folder Upload
+
+```tsx
+<Upload directory>
+  <Button>Upload Folder</Button>
+</Upload>
+```
+
+> `showClearAll` is automatically enabled when `directory={true}`.
+
+### Drag & Drop Dragger
+
+```tsx
+<Upload.Dragger accept="image/*" maxCount={8} listType="picture" />
+```
+
+> `children` is optional — Dragger renders its own default UI (icon + title + hint).
+> If `children` is provided it replaces the default title/hint but keeps the dragger zone.
+
+### Custom Icon & Hint
+
+```tsx
+import ImageIcon from 'lucide-solid/icons/image'
+
+<Upload.Dragger
+  icon={<ImageIcon size={40} class="text-primary" />}
+  hint="Only PNG, JPG, WEBP supported. Max 5 MB per file."
+  accept="image/png,image/jpeg,image/webp"
+/>
+```
+
+### Picture List Type
+
+```tsx
+<Upload listType="picture" accept="image/*">
+  <Button>Upload Images</Button>
+</Upload>
+```
+
+> Shows a 52×52 thumbnail, file dimensions, name, and size per item.
+
+### Picture-Card Grid
+
+```tsx
+<Upload listType="picture-card" accept="image/*" maxCount={8}>
+  {/* children not used in picture-card mode — the grid manages its own add button */}
+</Upload>
+```
+
+> When `maxCount` is reached the "Upload" add card disappears automatically.
+> For `Upload.Dragger` with `listType="picture-card"`, the dragger zone is also hidden — only the grid is shown.
+
+### Tooltip on Filenames (text list)
+
+```tsx
+<Upload showTooltip accept="*/*">
+  <Button>Upload</Button>
+</Upload>
+```
+
+> `showTooltip` only applies to the `text` list type. Long filenames are shown in a tooltip on hover.
+
+### Validation — maxFileSize / maxTotalSize
+
+```tsx
+const [errorMsg, setErrorMsg] = createSignal<string | null>(null)
+
+<Upload
+  multiple
+  maxCount={5}
+  maxFileSize={2 * 1024 * 1024}   // 2 MB per file
+  maxTotalSize={8 * 1024 * 1024}  // 8 MB total
+  onError={err => {
+    setErrorMsg(err.message)
+    setTimeout(() => setErrorMsg(null), 4000)
+  }}
+  errorMessage={
+    errorMsg() && (
+      <span class="text-error flex items-center gap-1">
+        <AlertCircle size={13} />
+        {errorMsg()}
+      </span>
+    )
+  }
+>
+  <Button>Upload</Button>
+</Upload>
+```
+
+> **Batch validation**: validation runs on the whole selection before any file is added.
+> If any file in the batch fails validation, the **entire batch** is rejected — no files from that selection enter the list.
+> `onError` is called with the first failing file and a typed `UploadValidationError`.
+> `errorMessage` is a JSX slot rendered inside the component wrapper below the file list.
+
+### ClassConfig — Custom Theme
+
+```tsx
+const classConfig: UploadClassConfig = {
+  wrapper: 'w-full max-w-sm',
+  dragger: 'rounded-2xl border-purple-400 bg-purple-50 hover:border-purple-600',
+  draggerTitle: 'text-purple-700 font-bold',
+  textItem: 'border-purple-200 bg-purple-50/50',
+}
+
+<Upload.Dragger class={classConfig} hint="Custom purple theme" />
+```
+
+### ClassConfig — Badge Style by File Type
+
+```tsx
+// textBadge adds classes on top of the auto color class
+const classConfig: UploadClassConfig = {
+  textBadge: '!rounded-full !px-2.5 !text-[9px] tracking-widest uppercase',
+}
+
+<Upload multiple class={classConfig}>
+  <Button>Upload</Button>
+</Upload>
+```
+
+> Badge color is still determined automatically by MIME type. `textBadge` only adds extra classes.
+
+### ClassConfig — Custom errorMessage Container
+
+```tsx
+const classConfig: UploadClassConfig = {
+  errorMessage: 'bg-error/10 border border-error/30 rounded-lg px-3 py-2 text-error text-xs flex items-center gap-2 mt-2',
+}
+
+<Upload class={classConfig} maxFileSize={500 * 1024} onError={...} errorMessage={...}>
+  <Button>Upload</Button>
+</Upload>
+```
+
+### Custom Upload Request (real HTTP)
+
+```tsx
+<Upload
+  customRequest={({ file, onSuccess, onError, onProgress }) => {
+    const controller = new AbortController()
+    const formData = new FormData()
+    formData.append('file', file)
+
+    fetch('/api/upload', {
+      method: 'POST',
+      body: formData,
+      signal: controller.signal,
+    })
+      .then(res => res.json())
+      .then(data => onSuccess(data))
+      .catch(err => onError(err))
+
+    // Return cancel fn — called when the user removes the file mid-upload
+    return () => controller.abort()
+  }}
+>
+  <Button>Upload to Server</Button>
+</Upload>
+```
+
+### Avatar Uploader (single picture-card)
+
+```tsx
+<Upload
+  listType="picture-card"
+  multiple={false}
+  maxCount={1}
+  accept="image/*"
+  showUploadList={false}
+  onChange={handleChange}
+>
+  {/* custom circular UI */}
+</Upload>
+```
+
+---
+
+## Behavioral Notes
+
+- **Batch validation** — All files in a selection are validated together before any upload begins. Validation order: `maxFileSize` (per file) → `maxCount` (whole batch) → `maxTotalSize` (whole batch). If any check fails, the **entire batch** is rejected and `onError` is called. No files from that selection are added to the list.
+- **Default request** — When `customRequest` is not provided, a simulated upload runs (progress increases by 8–18% per tick at 100–180ms intervals, stalls at 95%, then completes after a 400–700ms delay). Replace with a real `customRequest` in production.
+- **Progress isolation** — Each file's progress is a separate `Accessor<number>` signal stored in an internal `progressMap`. Updating one file's progress does **not** re-render sibling list items.
+- **Request cancellation** — If a file is removed while uploading, the cancel function returned by `customRequest` (or the default sim) is called automatically.
+- **Object URL cleanup** — `thumbUrl` object URLs are revoked automatically when files are removed.
+- **Image load abort** — If a file is removed before its image dimensions finish loading, the pending `Image.onload` is cancelled to prevent stale state updates.
+- **Image dimensions** — Detected automatically for image files and stored in `UploadFile.dimensions`.
+- **`maxCount` enforcement** — The trigger UI (button or "Upload" card) hides itself when the limit is reached.
+- **`showClearAll` behavior** — The "Clear all" button appears only when there are 2 or more files in the list.
+- **`class` backward compatibility** — Passing a plain `string` still works exactly as before (applied to the wrapper).
+- **`showTooltip`** — Only active in `listType="text"`. Has no effect on `picture` or `picture-card` lists.
+- **`Upload.Dragger` + `listType="picture-card"`** — The dragger zone is hidden; only the picture-card grid is rendered.
+
+---
+
+## listType Visual Summary
+
+| `listType`       | Layout             | Thumbnail | Progress style            | Built-in Preview |
+| ---------------- | ------------------ | --------- | ------------------------- | ---------------- |
+| `text`           | Compact rows       | No        | Thin bar at bottom of row | No               |
+| `picture`        | Vertical rows      | 52×52     | Bar below name            | Yes (modal)      |
+| `picture-card`   | Grid (96×96 cards) | 96×96     | Circular overlay          | Yes (modal)      |
+
+---
+
+## Component Conventions
+
+> **CSS encoding**: internal CSS classes use short encoded names (e.g. `up01`, `up02`, …, `up76`) per project convention. Do not reference these directly — use `UploadClassConfig` keys to override styles.
+
+> **Unique IDs**: `createUniqueId()` from `solid-js` is used wherever HTML `id` attributes are needed — never `Math.random()` or `Date.now()`.

@@ -1,0 +1,198 @@
+## COMPONENT IDENTITY
+- **Import**: `import { Dropdown } from 'solid-tom-ui';`
+- **Export**: `Dropdown` (named export)
+- **Framework**: SolidJS
+- **Purpose**: Dropdown that renders content into `document.body` via Portal; always visible above overflow-hidden containers; singleton behavior (only one open at a time)
+
+## Props
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `triggerElement` | `SolidComponent` | — | Element rendered as the clickable trigger |
+| `open` | `boolean` | `undefined` | Controlled mode: pass `true`/`false` to manage state externally |
+| `position` | `'top' \| 'bottom' \| 'left' \| 'right'` | `'bottom'` | Which side the content appears on |
+| `align` | `'start' \| 'center' \| 'end'` | `'start'` | Alignment along the cross axis |
+| `blockScroll` | `boolean` | `false` | Lock page scroll while dropdown is open |
+| `zIndex` | `number` | — | Override the automatic z-index |
+| `class.anchor` | `string` | — | Class on the content anchor wrapper |
+| `class.trigger` | `string` | — | Class on the trigger wrapper div |
+| `class.content` | `string` | — | Class on the content wrapper div |
+| `ref` | `HTMLDivElement \| ((el) => void)` | — | Ref to the trigger div |
+
+## Basic Usage
+
+```tsx
+<Dropdown triggerElement={<button class="btn btn-sm">Open</button>}>
+  <div class="bg-base-100 rounded-lg shadow-lg px-4 py-3 min-w-40">
+    <p>Dropdown content</p>
+  </div>
+</Dropdown>
+```
+
+### With position and alignment
+
+```tsx
+<Dropdown
+  position="top"
+  align="end"
+  triggerElement={<button class="btn btn-sm">Open ↑</button>}
+>
+  <div class="bg-base-100 rounded-lg shadow-lg px-4 py-3">
+    Top-end positioned
+  </div>
+</Dropdown>
+```
+
+### Controlled mode
+
+```tsx
+const [open, setOpen] = createSignal(false);
+
+<button class="btn btn-sm" onClick={() => setOpen(v => !v)}>Toggle</button>
+<Dropdown
+  open={open()}
+  triggerElement={<div class="border rounded px-3 py-1">Trigger</div>}
+>
+  <div class="bg-base-100 rounded-lg shadow-lg px-4 py-3">
+    <button class="btn btn-xs btn-ghost" onClick={() => setOpen(false)}>Close</button>
+  </div>
+</Dropdown>
+```
+
+### Inside `overflow-hidden` container
+
+```tsx
+// Portal mode escapes overflow-hidden — content is always visible
+<div class="overflow-hidden h-16 w-48 border rounded flex items-center justify-center">
+  <Dropdown triggerElement={<button class="btn btn-sm">Open</button>}>
+    <div class="bg-base-100 shadow-lg px-4 py-3">Visible!</div>
+  </Dropdown>
+</div>
+```
+
+### Scroll lock
+
+```tsx
+<Dropdown
+  blockScroll
+  triggerElement={<button class="btn btn-sm btn-warning">Open (scroll locked)</button>}
+>
+  <div class="bg-base-100 rounded-lg shadow-lg px-6 py-4">
+    Page scroll is locked while this is open.
+  </div>
+</Dropdown>
+```
+
+## Behavior Details
+
+### Singleton
+
+Only one dropdown can be open at a time. Opening a second dropdown automatically closes the first. This is enforced by the global `dropdownStore`.
+
+### Click outside to close
+
+A full-screen invisible backdrop (`nd-backdrop`) catches clicks outside the content.
+
+### Controlled vs uncontrolled
+
+- **Uncontrolled** (no `open` prop): the component manages its own open/close state.
+- **Controlled** (`open` prop provided): the component delegates state to the parent. The trigger click has no effect — the parent must update `open` manually. Controlled state is synced with `dropdownStore`.
+
+### Position tracking (`blockScroll={false}`)
+
+When open and `blockScroll` is false, the portal content anchor tracks the trigger element's position continuously via `element-tracker`. This ensures the dropdown stays aligned even when the page scrolls.
+
+When `blockScroll={true}`, tracking stops (the page cannot scroll anyway, so the position is stable).
+
+## Positioning System
+
+Content position is computed from `getBoundingClientRect()` of the trigger, stored in CSS variables on the anchor element:
+
+| Variable | Value |
+|----------|-------|
+| `--nd-t` | `trigger.top` |
+| `--nd-l` | `trigger.left` |
+| `--nd-w` | `trigger.width` |
+| `--nd-h` | `trigger.height` |
+
+`data-pos` and `data-align` attributes on `.nd-content-anchor` drive all position/alignment combinations via pure CSS. Gap between trigger and content is controlled by `--nd-gap` (default: `6px`).
+
+## Common Patterns
+
+### Menu list inside dropdown
+
+```tsx
+<Dropdown triggerElement={<button class="btn btn-sm">Menu</button>}>
+  <ul class="bg-base-100 rounded-lg shadow-lg overflow-hidden min-w-40">
+    <li>
+      <button class="w-full px-4 py-2 text-left text-sm hover:bg-base-200 transition-colors">
+        Edit
+      </button>
+    </li>
+    <li>
+      <button class="w-full px-4 py-2 text-left text-sm text-error hover:bg-error/10 transition-colors">
+        Delete
+      </button>
+    </li>
+  </ul>
+</Dropdown>
+```
+
+### Icon trigger (three-dot menu)
+
+```tsx
+import { MoreHorizontal } from 'lucide-solid';
+
+<Dropdown
+  align="end"
+  triggerElement={
+    <button class="btn btn-ghost btn-xs btn-square">
+      <MoreHorizontal size={16} />
+    </button>
+  }
+>
+  <ul class="bg-base-100 rounded-lg shadow-lg overflow-hidden min-w-36">
+    <li><button class="w-full px-4 py-2 text-left text-sm hover:bg-base-200">Rename</button></li>
+    <li><button class="w-full px-4 py-2 text-left text-sm hover:bg-base-200">Duplicate</button></li>
+    <li><button class="w-full px-4 py-2 text-left text-sm text-error hover:bg-error/10">Delete</button></li>
+  </ul>
+</Dropdown>
+```
+
+### Programmatic close from content
+
+Use controlled mode to close the dropdown from inside:
+
+```tsx
+const [open, setOpen] = createSignal(false);
+
+<Dropdown
+  open={open()}
+  triggerElement={
+    <button class="btn btn-sm" onClick={() => setOpen(true)}>Open</button>
+  }
+>
+  <div class="bg-base-100 rounded-lg shadow-lg px-4 py-3">
+    <button class="btn btn-xs" onClick={() => setOpen(false)}>Close me</button>
+  </div>
+</Dropdown>
+```
+
+## Styling Tips
+
+- **Content width**: Portal content has `min-width: max-content` by default. Use `min-w-*` Tailwind classes on the content div to enforce a minimum width.
+- **Custom gap**: Override `--nd-gap` on `.nd-content-anchor` via inline style or a custom CSS class.
+- **Animation origin**: Animation scale origin (`transform-origin`) is automatically set per position/alignment via `--nd-origin` CSS variable — no manual adjustment needed.
+
+## Gotchas
+
+1. **Singleton**: Only one dropdown can be open at a time — enforced by `dropdownStore`.
+2. **`class.content` vs content children**: `class.content` targets the `.nd-content` wrapper, not the children directly. Apply `rounded`, `shadow`, `bg-*` to the direct child element inside `<Dropdown>` for full visual control.
+
+---
+
+## Component Conventions
+
+> **CSS encoding**: internal CSS classes use short encoded names (e.g. `dp01`, `dp02`) per project convention.
+
+> **Unique IDs**: if this component needs to generate HTML `id` attributes, always use `createUniqueId()` from `solid-js` — never `Math.random()` or `Date.now()`.

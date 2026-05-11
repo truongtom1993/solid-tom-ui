@@ -1,0 +1,359 @@
+## COMPONENT IDENTITY
+- **Import**: `import { Modal, createModal, closeAllModals } from 'solid-tom-ui';`
+- **Exports**: `Modal` (declarative JSX), `createModal` (imperative API), `closeAllModals`, `ModalType` (type export)
+- **Framework**: SolidJS
+- **Purpose**: Modal dialog built on native `<dialog>` — supports both declarative JSX and imperative `createModal()` API
+
+---
+
+## PROP REFERENCE (`ModalType`)
+
+| Prop | Type | Default | Description |
+|---|---|---|---|
+| `open` | `boolean` | `true` | Controls visibility. `true` → calls `dialog.showModal()`. `false` → calls `dialog.close()`. |
+| `onClose` | `() => void` | `() => {}` | Required callback — fired on native `close` event (ESC, backdrop click, close button). **Must set `open` to `false` here in controlled usage.** |
+| `header` | `SolidComponent` | Modal ID fallback | JSX rendered inside `.sui-modal-header`. |
+| `body` | `SolidComponent` | Fallback paragraph | JSX rendered inside `.sui-modal-body`. Pass as function `() => <JSX>` to defer evaluation. |
+| `footer` | `SolidComponent` | `<></>` | JSX rendered inside `.sui-modal-footer`. Pass as function `() => <JSX>` or as static JSX. |
+| `width` | `string` | — | Sets both `width` and `min-width` on `.modal-box`. Accepts any CSS size (`'500px'`, `'80vw'`, etc.). |
+| `closeOnOutsideClick` | `boolean` | `true` | Renders a `<form method="dialog">` backdrop. Click outside `.modal-box` closes the dialog. |
+| `closable` | `boolean` | `true` | Show/hide the X close button in the top-right corner of `.modal-box`. |
+| `mask` | `boolean \| { enabled: boolean; blur: boolean }` | `true` | Overlay behind the modal. `true` → default overlay + blur. `false` → no overlay. `{ enabled: true, blur: false }` → overlay without blur. |
+| `preRender` | `boolean` | `false` | If `true`, component is always mounted in the DOM regardless of `open`. If `false`, component unmounts when `open` is `false` (via `<Show>`). |
+| `animate` | `{ name: AnimateType } & AnimationConfig` | `{ name: 'puffInCenter', duration: '300ms' }` | CSS animation played on `.modal-box` when modal opens. Set `name: 'none'` to disable. |
+| `class` | `Partial<Record<'dialog' \| 'modal' \| 'closeButton', string>>` | — | Merge custom classes onto specific elements. |
+
+### `AnimateType` values
+
+```
+'none' | 'lightSpeedInRight' | 'lightSpeedInLeft' | 'fadeIn' | 'fadeInLeft'
+| 'fadeInRight' | 'fadeInDown' | 'fadeInUp' | 'bounceIn' | 'scaleInCenter'
+| 'slideInFwdCenter' | 'slideInBck' | 'tiltIn' | 'swingInRightBck'
+| 'puffInCenter' | 'scaleInBl'
+```
+
+### `AnimationConfig` fields (all optional)
+
+| Field | Type | Default |
+|---|---|---|
+| `duration` | `` `${number}s` \| `${number}ms` `` | `'1s'` |
+| `timingFunction` | `'ease' \| 'ease-in' \| 'ease-out' \| ...` | `'ease'` |
+| `delay` | `TimeUnit` | `'0s'` |
+| `iterationCount` | `number \| 'infinite'` | `1` |
+| `direction` | `'normal' \| 'reverse' \| 'alternate' \| 'alternate-reverse'` | `'normal'` |
+| `fillMode` | `'none' \| 'forwards' \| 'backwards' \| 'both'` | `'none'` |
+| `playState` | `'running' \| 'paused'` | `'running'` |
+
+---
+
+## IMPERATIVE API (`modalContext`)
+
+### `createModal(options)`
+
+```ts
+function createModal(options: Omit<ModalType, 'open' | 'preRender'>): ModalInstance
+```
+
+- Mounts a `ComponentModal` imperatively into `document.body` via `insert`.
+- Returns a `ModalInstance` with a `destroy()` method.
+- The modal opens immediately (`isOpen = true`).
+- Calling `onClose` in options automatically destroys the instance after 150ms.
+- Tracks all active instances internally in `activeModalInstances`.
+
+```ts
+type ModalInstance = {
+  destroy: () => void; // Immediately unmounts the modal
+};
+```
+
+### `closeAllModals()`
+
+```ts
+function closeAllModals(): void
+```
+
+- Calls `destroy()` on all currently active modal instances.
+- Use for global cleanup (e.g., route changes, session expiration).
+
+---
+
+## BEHAVIORAL RULES (inferred from implementation)
+
+### Controlled pattern
+
+`Modal` is always **fully controlled**. The parent must:
+1. Hold `open` state via `createSignal`.
+2. Set `open` to `false` inside `onClose`.
+
+If `onClose` does not update the signal, the dialog closes natively but `open` stays `true` → next render re-opens the dialog.
+
+### Native `<dialog>` element
+
+The component renders a native HTML `<dialog>`. It uses:
+- `dialog.showModal()` when `open` becomes `true`.
+- `dialog.close()` when `open` becomes `false`.
+- The `close` DOM event maps to the `onClose` prop.
+- ESC key fires the native `close` event automatically.
+- Rendered via `<Portal>` — always mounts to `document.body`, outside component tree.
+
+### Stacking / Z-index
+
+- Each modal gets a unique ID via `createUniqueId()`.
+- Active modal IDs are tracked in a module-level signal `modalIds`.
+- Overlay (`.modalOverlay`) is only applied to the **topmost** modal (`modalId === modalIds().at(-1)`).
+- Lower modals lose the overlay class, keeping the visual stack clean.
+
+### `preRender` behavior
+
+```
+preRender=false (default) → <Show when={open}><Modal /></Show>
+  → component is unmounted when closed; internal state resets on next open.
+
+preRender=true → <Modal /> always mounted
+  → component persists in DOM; internal state preserved between open/close.
+```
+
+Use `preRender={true}` when:
+- Modal content is expensive to re-initialize.
+- You need to preserve form state across open/close cycles.
+
+Use `preRender={false}` (default) when:
+- Modal content should reset each time it opens.
+- Memory efficiency matters.
+
+### Cleanup
+
+`onCleanup` removes the modal's ID from `modalIds` when the component unmounts. Prevents stale overlay assignments in nested modal scenarios.
+
+---
+
+## USAGE PATTERNS
+
+### 1. Minimal controlled modal
+
+```tsx
+const [open, setOpen] = createSignal(false);
+
+<Button onClick={() => setOpen(true)}>Open</Button>
+<Modal
+  open={open()}
+  onClose={() => setOpen(false)}
+  body={() => <p>Modal content</p>}
+/>
+```
+
+### 2. With header, body, footer
+
+```tsx
+<Modal
+  open={open()}
+  onClose={() => setOpen(false)}
+  header={<h2 class="text-lg font-bold">Title</h2>}
+  body={() => <p>Body content</p>}
+  footer={
+    <div class="flex justify-end gap-2">
+      <Button variant="simple" onClick={() => setOpen(false)}>Cancel</Button>
+      <Button variant="solid" color="primary" onClick={handleSave}>Save</Button>
+    </div>
+  }
+/>
+```
+
+### 3. Custom width
+
+```tsx
+<Modal
+  open={open()}
+  onClose={() => setOpen(false)}
+  width="900px"
+  class={{ modal: 'h-[500px]' }}
+  body={() => <MyLargeContent />}
+/>
+```
+
+### 4. Disable outside click close
+
+```tsx
+<Modal
+  open={open()}
+  onClose={() => setOpen(false)}
+  closeOnOutsideClick={false}
+  body={() => <ImportantForm />}
+/>
+```
+
+### 5. No close button
+
+```tsx
+<Modal
+  open={open()}
+  onClose={() => setOpen(false)}
+  closable={false}
+  body={() => <div>No X button shown</div>}
+/>
+```
+
+### 6. No overlay / custom mask
+
+```tsx
+// No overlay at all
+<Modal open={open()} onClose={() => setOpen(false)} mask={false} body={() => <div />} />
+
+// Overlay without blur
+<Modal
+  open={open()}
+  onClose={() => setOpen(false)}
+  mask={{ enabled: true, blur: false }}
+  body={() => <div />}
+/>
+```
+
+### 7. Custom animation
+
+```tsx
+<Modal
+  open={open()}
+  onClose={() => setOpen(false)}
+  animate={{ name: 'fadeInDown', duration: '200ms', timingFunction: 'ease-out' }}
+  body={() => <div>Animated</div>}
+/>
+
+// Disable animation
+<Modal
+  open={open()}
+  onClose={() => setOpen(false)}
+  animate={{ name: 'none' }}
+  body={() => <div>No animation</div>}
+/>
+```
+
+### 8. Preserve state across open/close (`preRender`)
+
+```tsx
+<Modal
+  open={open()}
+  onClose={() => setOpen(false)}
+  preRender={true}
+  body={() => <ExpensiveForm />}
+/>
+```
+
+### 9. Custom classes on inner elements
+
+```tsx
+<Modal
+  open={open()}
+  onClose={() => setOpen(false)}
+  class={{
+    dialog: 'my-dialog-class',
+    modal: 'rounded-2xl shadow-2xl',
+    closeButton: 'text-red-500',
+  }}
+  body={() => <div />}
+/>
+```
+
+### 10. Nested modals (multi-level)
+
+```tsx
+// Level 1
+const [l1, setL1] = createSignal(false);
+// Level 2
+const [l2, setL2] = createSignal(false);
+
+<Modal open={l1()} onClose={() => setL1(false)} body={() => (
+  <>
+    <Button onClick={() => setL2(true)}>Open L2</Button>
+    <Modal open={l2()} onClose={() => setL2(false)} body={() => <div>L2 content</div>} preRender={false} />
+  </>
+)} />
+```
+
+Overlay is only applied to the topmost active modal automatically.
+
+### 11. Imperative API — fire-and-forget
+
+```tsx
+import { createModal } from 'solid-tom-ui';
+
+function showAlert() {
+  const modal = createModal({
+    header: <h2>Alert</h2>,
+    body: () => <p>Something happened.</p>,
+    footer: (
+      <Button onClick={() => modal.destroy()}>OK</Button>
+    ),
+    onClose: () => {}, // optional extra cleanup
+  });
+}
+```
+
+### 12. Close all modals (e.g., on route change)
+
+```tsx
+import { closeAllModals } from 'solid-tom-ui';
+
+onCleanup(() => closeAllModals());
+```
+
+---
+
+## CSS CLASSES (public API for customization)
+
+| Class | Applied to |
+|---|---|
+| `modal` | `<dialog>` root element |
+| `modalOverlay` | `<dialog>` when it is the topmost modal and `mask` is active |
+| `modal-box` | Inner content container `<div>` |
+| `sui-modal-header` | Header slot `<div>` |
+| `sui-modal-body` | Body slot `<div>` |
+| `sui-modal-footer` | Footer slot `<div>` |
+
+Use `class={{ dialog: '...', modal: '...', closeButton: '...' }}` prop to append classes to specific elements.
+
+---
+
+## ANIMATION SYSTEM
+
+- Animation runs via CSS custom property `--openAnimate` set as inline style on `.modal-box`.
+- `renderCSSAnimation(config)` from `@/utils/helper` generates the `animation` shorthand string.
+- Animation triggers on `.modal[open] .modal-box` (CSS layer `components`).
+- Changing `animate.name` to `'none'` prevents setting `--openAnimate` → no animation.
+- Animation only fires on **open**, not on close (native `<dialog>` has no built-in close animation hook).
+
+---
+
+## CONSTRAINTS & EDGE CASES
+
+- `onClose` is **required** in practice — without updating `open` signal inside it, the modal will re-open immediately after closing.
+- `body`, `header`, `footer` accept `SolidComponent` (i.e., `() => JSX.Element` or `JSX.Element`). Pass expensive subtrees as functions `() => <JSX>` to avoid evaluating them before the modal opens.
+- `Portal` renders into `document.body`. The modal is outside any parent's DOM subtree — CSS `overflow: hidden` on ancestors does NOT clip the modal.
+- `createModal` does NOT accept `open` or `preRender` — the modal is always immediately open and never pre-renders.
+- `createModal` instances must be destroyed manually via `instance.destroy()` or `closeAllModals()` if `onClose` is not configured to auto-destroy.
+- Multiple simultaneous `createModal` calls stack correctly — each gets its own `createRoot` reactive scope.
+- The `close` DOM event fires **after** the dialog is already visually closed. Do not rely on `onClose` timing for animations.
+
+---
+
+## DO / DON'T
+
+**DO**
+- Always pair `open={signal()}` with `onClose={() => setSignal(false)}`.
+- Pass `body` and expensive content as `() => <JSX>` (function) to defer rendering.
+- Use `preRender={true}` when you need to retain form state between open/close cycles.
+- Use `createModal` for fire-and-forget alerts, confirmations, or notifications outside the component tree.
+- Use `class={{ modal: '...' }}` to control `.modal-box` dimensions (height, border-radius, etc.).
+- Import from the barrel: `import { Modal, createModal, closeAllModals } from 'solid-tom-ui'`.
+
+**DON'T**
+- Don't omit `onClose` or leave it as a no-op — the dialog will fight between native closed state and `open` prop.
+- Don't use `ComponentModal` directly unless you need the raw unguarded component (no `<Show>` wrapping).
+- Don't import `ModalExample` in production — it's a demo component only.
+- Don't expect `createModal` instances to auto-cleanup — call `destroy()` or `closeAllModals()` when appropriate.
+- Don't nest `<Portal>` inside modal body — the modal itself already renders via `<Portal>`.
+- Don't try to control the overlay on lower-level modals — the stacking system handles it automatically via `modalIds`.
+---
+
+## Component Conventions
+
+> **CSS encoding**: internal CSS classes use short encoded names (e.g. `mo01`, `mo02`) per project convention.

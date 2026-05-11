@@ -1,0 +1,162 @@
+## COMPONENT IDENTITY
+- **Import**: `import { ImagePreview } from 'solid-tom-ui';`
+- **Export**: `ImagePreview` (named export), `ImagePreviewProps`, `ImagePreviewClassProps` (type exports)
+- **Framework**: SolidJS
+- **Purpose**: Fullscreen lightbox — renders via Portal on top of all content, locks body scroll; supports zoom, pan, rotate, flip, and optional file-info popup
+
+## Props
+
+| Prop              | Type                      | Default     | Description |
+|-------------------|---------------------------|-------------|-------------|
+| `src`             | `string`                  | **required**| Image URL to display |
+| `onClose`         | `() => void`              | **required**| Called when the user clicks the ✕ button (or backdrop if enabled) |
+| `name`            | `string`                  | —           | File name shown in the info popup |
+| `size`            | `string`                  | —           | Human-readable file size, e.g. `"320 KB"` |
+| `createdAt`       | `Date \| string`          | —           | Creation date (auto-formatted to locale string) |
+| `modifiedAt`      | `Date \| string`          | —           | Last-modified date |
+| `closeOnBackdrop` | `boolean`                 | `false`     | When `true`, clicking the dark backdrop also calls `onClose` |
+| `class`           | `ImagePreviewClassProps`  | —           | Override CSS classes for individual internal elements |
+
+> The info button (ⓘ) only appears in the toolbar when at least one of `name`, `size`, `createdAt`, or `modifiedAt` is provided.
+
+## ImagePreviewClassProps
+
+Used to override styles for specific internal elements:
+
+```ts
+type ImagePreviewClassProps = {
+  backdrop?: string;    // full-screen dark overlay
+  close?: string;       // ✕ close button (top-right)
+  box?: string;         // image wrapper / pan container
+  img?: string;         // the <img> element
+  toolbar?: string;     // bottom toolbar pill
+  toolBtn?: string;     // each icon button in the toolbar
+  zoomLabel?: string;   // "100%" zoom percentage text
+  infoPopup?: string;   // floating info popup panel
+};
+```
+
+## Built-in toolbar controls
+
+| Action | How |
+|--------|-----|
+| Zoom in / out | Toolbar buttons **or** mouse wheel over the image |
+| Zoom range | 25 % → 400 %, step 25 % |
+| Pan | Click-drag when zoom > 100 % |
+| Rotate CW / CCW | Toolbar buttons (90° steps) |
+| Flip horizontal / vertical | Toolbar buttons |
+| Reset all transforms | Toolbar reset button (disabled when already at default) |
+| File info | Toolbar ⓘ button → popup with name, size, dimensions, dates |
+| Close | ✕ button fixed top-right; optionally also backdrop click |
+
+## Usage
+
+### Minimal — controlled visibility
+
+```tsx
+import { createSignal } from 'solid-js';
+import { ImagePreview } from 'solid-tom-ui';
+
+export function App() {
+  const [open, setOpen] = createSignal(false);
+
+  return (
+    <>
+      <button onClick={() => setOpen(true)}>Open</button>
+
+      {open() && (
+        <ImagePreview
+          src="https://example.com/photo.jpg"
+          onClose={() => setOpen(false)}
+        />
+      )}
+    </>
+  );
+}
+```
+
+### With file metadata
+
+```tsx
+{open() && (
+  <ImagePreview
+    src={file.url}
+    name={file.name}
+    size="1.2 MB"
+    createdAt={new Date('2024-03-15')}
+    modifiedAt="2024-10-01T08:05:00"
+    onClose={() => setOpen(false)}
+    closeOnBackdrop
+  />
+)}
+```
+
+### Gallery with typed state
+
+```tsx
+import { createSignal, For } from 'solid-js';
+import { ImagePreview } from 'solid-tom-ui';
+
+type Item = { src: string; name: string; size: string };
+
+const ITEMS: Item[] = [
+  { src: '/img/a.jpg', name: 'a.jpg', size: '200 KB' },
+  { src: '/img/b.jpg', name: 'b.jpg', size: '340 KB' },
+];
+
+export function Gallery() {
+  const [active, setActive] = createSignal<Item | null>(null);
+
+  return (
+    <>
+      <For each={ITEMS}>
+        {item => (
+          <img src={item.src} onClick={() => setActive(item)} />
+        )}
+      </For>
+
+      {active() && (
+        <ImagePreview
+          src={active()!.src}
+          name={active()!.name}
+          size={active()!.size}
+          onClose={() => setActive(null)}
+        />
+      )}
+    </>
+  );
+}
+```
+
+### Custom styling (themed toolbar)
+
+Pass a `class` object to restyle individual parts without touching the component internals:
+
+```tsx
+<ImagePreview
+  src={img.src}
+  onClose={close}
+  class={{
+    toolbar:  'bg-purple-900/60 border-purple-400/20',
+    toolBtn:  'hover:bg-purple-400/30 hover:text-purple-100',
+    backdrop: 'bg-purple-950/90',
+    infoPopup:'border-purple-400/20 bg-purple-950/80',
+  }}
+/>
+```
+
+## Important notes
+
+- **Controlled only** — `ImagePreview` has no internal open/close state. Mount it conditionally (`{show() && <ImagePreview … />}`) and unmount it to close.
+- **Portal** — rendered outside your component tree into `document.body`; `z-index: 9999`.
+- **Body scroll lock** — automatically adds `overflow: hidden` to `document.body` on mount and restores the previous value on unmount.
+- **Date formatting** — `createdAt` and `modifiedAt` accept `Date` objects or ISO strings. Invalid values are displayed as-is.
+- **CSS** — base styles live in `image-preview.style.css` under `@layer components`. All class names start with `sui-lightbox-*`. Override via the `class` prop rather than targeting these selectors globally.
+- **Drag cursor** — the image container automatically shows `cursor-grab` / `cursor-grabbing` when zoom > 100 %.
+---
+
+## Component Conventions
+
+> **CSS encoding**: internal CSS classes use short encoded names (e.g. `ip01`, `ip02`) per project convention.
+
+> **Unique IDs**: if this component needs to generate HTML `id` attributes, always use `createUniqueId()` from `solid-js` — never `Math.random()` or `Date.now()`.

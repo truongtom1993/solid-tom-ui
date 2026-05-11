@@ -1,0 +1,127 @@
+## COMPONENT IDENTITY
+- **Import**: `import { Loading, Spinner } from 'solid-tom-ui';`
+- **Exports**: `Loading` (main), `Spinner` (sub-component)
+- **Framework**: SolidJS
+- **Purpose**: Flexible loading indicator with 11 animation variants and 5 size options; supports DaisyUI semantic colors and any valid CSS color value
+
+## Props — `Loading`
+
+| Prop      | Type                              | Default     | Description                                      |
+|-----------|-----------------------------------|-------------|--------------------------------------------------|
+| `variant` | `DaisyVariant \| SvgVariant`      | `'spinner'` | Animation style (see variants below)             |
+| `size`    | `'xs' \| 'sm' \| 'md' \| 'lg' \| 'xl'` | `'sm'`  | Size of the indicator                            |
+| `color`   | `BaseColorProps \| string`        | —           | Color: semantic token or any CSS color value     |
+| `class`   | `string`                          | —           | Additional CSS classes                           |
+
+### Variant Groups
+
+**DaisyUI-based** (rendered as `<div>` with DaisyUI classes):
+- `spinner` — rotating arc (default DaisyUI spinner)
+- `spinner-2` — CSS border-based spinner (custom, not from DaisyUI)
+- `dots` — three bouncing dots
+- `ring` — spinning ring outline
+- `ball` — bouncing ball
+- `bars` — animated vertical bars
+- `infinity` — infinity symbol animation
+
+**SVG-based** (rendered as inline SVG):
+- `spinner-3` — 12-dot clock-style spinner with SVG `<animate>`
+- `spinner-4` — Lucide `Loader` icon with `animate-spin`
+- `spinner-5` — 12-line spoke spinner using `animateTransform` (discrete steps)
+- `spinner-6` — gradient arc circle with `animate-spin`
+
+## Props — `Spinner`
+
+| Prop    | Type     | Default     | Description                     |
+|---------|----------|-------------|---------------------------------|
+| `color` | `string` | `'#6E56CF'` | Stroke color (any CSS color)    |
+| `class` | `string` | —           | Defaults to `size-3 animate-spin` |
+
+`Spinner` does **not** accept `variant` or `size`. It always renders a small gradient arc SVG. Use `class` to override size.
+
+## Color System
+
+The `color` prop on `Loading` accepts:
+
+1. **`BaseColorProps` tokens**: `'primary'`, `'secondary'`, `'accent'`, `'neutral'`, `'info'`, `'success'`, `'warning'`, `'error'`
+   — automatically resolved to the corresponding DaisyUI CSS variable (e.g., `var(--color-primary)`)
+
+2. **Any CSS color value**: hex (`#ff0000`), rgb, hsl, named colors, etc.
+   — passed directly as `color` style
+
+For DaisyUI variants, color is applied via the CSS `color` property, which drives `currentColor` in DaisyUI's masking/border logic.
+
+## Usage Examples
+
+### Basic usage
+```tsx
+import { Loading } from 'solid-tom-ui';
+
+// Default: spinner, sm size
+<Loading />
+
+// Dots indicator, large
+<Loading variant="dots" size="lg" />
+
+// SVG spinner with primary color
+<Loading variant="spinner-3" size="md" color="primary" />
+
+// Custom hex color
+<Loading variant="ring" size="xl" color="#ff6b6b" />
+```
+
+### All variants at a glance
+```tsx
+const variants = ['spinner','spinner-2','spinner-3','spinner-4','spinner-5','spinner-6','dots','ring','ball','bars','infinity'];
+
+<For each={variants}>
+  {(v) => <Loading variant={v} size="md" />}
+</For>
+```
+
+### Inline `Spinner` inside a button
+```tsx
+import { Spinner } from 'solid-tom-ui';
+
+<button disabled={loading()}>
+  <Show when={loading()}>
+    <Spinner class="size-4" color="white" />
+  </Show>
+  Submit
+</button>
+```
+
+### Full-page overlay
+```tsx
+<Show when={isLoading()}>
+  <div class="fixed inset-0 flex items-center justify-center bg-black/30 z-50">
+    <Loading variant="infinity" size="xl" color="primary" />
+  </div>
+</Show>
+```
+
+## Size Reference
+
+| Size | DaisyUI variants | SVG variants (spinner-3/4/5/6) |
+|------|-----------------|-------------------------------|
+| `xs` | DaisyUI `loading-xs` | 1rem × 1rem     |
+| `sm` | DaisyUI `loading-sm` | 1.25rem × 1.25rem |
+| `md` | DaisyUI `loading-md` | 1.5rem × 1.5rem  |
+| `lg` | DaisyUI `loading-lg` | 2rem × 2rem      |
+| `xl` | DaisyUI `loading-xl` | 2.5rem × 2.5rem  |
+
+## Class Slots
+
+Both `Loading` and `Spinner` are single-element components — `class` appends to the root element. No named sub-element slots.
+
+> **CSS encoding**: internal CSS classes use short encoded names (e.g. `ld01`, `ld02`) per project convention.
+
+> **Unique IDs**: `Spinner` uses `createUniqueId()` from `solid-js` for the SVG `linearGradient` `id` — safe when multiple `Spinner` instances are on the same page.
+
+## Implementation Notes
+
+- `spinner-2` is a **custom CSS border-spinner**, not a standard DaisyUI variant. It uses `border-top-color: currentColor` + `animation: sui-spin`.
+- SVG variants (`spinner-3` through `spinner-6`) use `svg_size_map` to apply size via `.loading-svg-*` CSS classes instead of DaisyUI's `loading-*` size utilities.
+- `spinner-4` wraps the Lucide `Loader` icon — its visual style matches Lucide's stroke-based icon set.
+- `Spinner` uses a `createUniqueId()` for the SVG `linearGradient` id to avoid conflicts when multiple instances are on the page.
+- Both components support `class` override; this is appended via `cn()` (clsx + tailwind-merge), so Tailwind conflicts are resolved correctly.

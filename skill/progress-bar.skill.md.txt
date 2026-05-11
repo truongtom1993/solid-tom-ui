@@ -1,0 +1,207 @@
+## COMPONENT IDENTITY
+- **Import**: `import { progressBar } from 'solid-tom-ui';`
+- **Export**: `progressBar` (singleton object), `ProgressBarOptions`, `ProgressBarAPI` (type exports)
+- **Framework**: SolidJS
+- **Purpose**: Fixed-position, imperative page-load indicator (NProgress-inspired) — singleton API; do NOT render in JSX; mounts itself into `document.body` on first use
+
+## API
+
+```ts
+interface ProgressBarAPI {
+  start(options?: ProgressBarOptions): void;
+  dismiss(): void;
+}
+```
+
+### `progressBar.start(options?)`
+
+Starts the progress animation immediately. The bar begins at 0% and creeps toward 99% using an exponential-decay speed curve — it **never reaches 100% on its own**. Only `dismiss()` can complete it.
+
+If a bar is already running, calling `start()` again **replaces it immediately** — the old instance is destroyed synchronously with no animation.
+
+### `progressBar.dismiss()`
+
+Snaps the bar to 100%, waits 80ms, then fades it out over `fadeOutDuration` ms before removing it from the DOM. Safe to call when no bar is running (no-op).
+
+---
+
+## Options
+
+| Option            | Type                              | Default           | Description                                                              |
+| ----------------- | --------------------------------- | ----------------- | ------------------------------------------------------------------------ |
+| `color`           | `BaseColorProps \| (string & {})` | `'primary'`       | Bar color. Accepts any `BaseColorProps` token or a raw CSS color string  |
+| `height`          | `number`                          | `3`               | Bar height in pixels                                                     |
+| `shimmer`         | `boolean`                         | `true`            | Animated shimmer sweep across the bar                                    |
+| `rounded`         | `boolean`                         | `true`            | Rounded leading tip of the bar                                           |
+| `zIndex`          | `number`                          | `9999`            | CSS `z-index` of the bar container                                       |
+| `fadeOutDuration` | `number`                          | `300`             | Fade-out duration in milliseconds after `dismiss()`                      |
+| `position`        | `'top' \| 'bottom'`               | `'top'`           | Whether the bar sticks to the top or bottom of the viewport              |
+| `direction`       | `'leftToRight' \| 'rightToLeft'`  | `'leftToRight'`   | Fill direction of the bar                                                |
+
+---
+
+## Usage Examples
+
+### Basic — manual start and dismiss
+
+```ts
+import { progressBar } from 'solid-tom-ui';
+
+progressBar.start();
+
+// When work is done:
+progressBar.dismiss();
+```
+
+### Async operation (network request)
+
+```ts
+progressBar.start({ color: 'primary', height: 3 });
+
+try {
+  await fetchData();
+} finally {
+  progressBar.dismiss();
+}
+```
+
+### Custom color
+
+```ts
+// Any BaseColorProps value is valid
+progressBar.start({ color: 'success' });
+progressBar.start({ color: 'error' });
+progressBar.start({ color: 'warning' });
+```
+
+### Full customization
+
+```ts
+progressBar.start({
+  color: 'accent',
+  height: 5,             // thicker bar
+  shimmer: false,        // disable shimmer
+  rounded: false,        // square tip
+  zIndex: 10000,
+  fadeOutDuration: 500,  // slower fade
+  position: 'bottom',    // pin to bottom
+  direction: 'rightToLeft',
+});
+```
+
+### Multiple rapid starts — only the last one wins
+
+```ts
+progressBar.start({ color: 'info' });
+setTimeout(() => progressBar.start({ color: 'warning' }), 300);
+setTimeout(() => progressBar.start({ color: 'success' }), 600);
+// Result: only the success bar remains — previous ones are destroyed immediately
+```
+
+### Router integration (SolidJS Router)
+
+```ts
+import { useBeforeLeave, useLocation } from '@solidjs/router';
+import { createEffect, on } from 'solid-js';
+
+// In your root component:
+const location = useLocation();
+
+createEffect(on(() => location.pathname, () => {
+  progressBar.start();
+}));
+
+// After route resolves / data loads:
+progressBar.dismiss();
+```
+
+---
+
+## Animation Behavior
+
+### Auto-advance (start → 99%)
+
+Uses a `requestAnimationFrame` loop with an exponential-decay speed model:
+
+```
+speed = 28 * (0.88 ^ (elapsed_seconds * 2.5))   // % per second
+```
+
+- Starts fast (~28%/s), then slows exponentially.
+- Asymptotes at **99%** — never auto-completes.
+- This mirrors real page-load UX: responsive at first, then conveys "still working."
+
+### Completion sequence (dismiss)
+
+```
+setProgress(100)
+  → wait 80ms
+  → setOpacity(0), transition = fadeOutDuration ms
+  → after fadeOutDuration ms → dispose() + remove slot from DOM
+```
+
+### Instance replacement
+
+When `start()` is called while a bar is already running, the old instance is destroyed **synchronously** (no animation) and the new instance starts from 0%.
+
+---
+
+## DOM Structure
+
+The component self-injects this into `<body>` on the first `start()` call:
+
+```
+document.body
+  └── <div id="sui-progress-bar-container">
+        └── <div>  (slot per instance)
+              └── <ProgressBarInner>  (SolidJS render)
+                    └── <div style="position:fixed; top|bottom:0; left:0; right:0; pointer-events:none">
+                          └── <div style="width:X%; height:Ypx">  (the bar)
+                                └── <div class="animate-[shimmer...]">  (optional shimmer)
+```
+
+The container (`#sui-progress-bar-container`) persists for the lifetime of the page. Each `start()` call appends a new slot; it is removed after `dismiss()` completes.
+
+---
+
+## Styling Notes
+
+- Bar color uses `getColor(color)` → `bg-(--color)` via DaisyUI CSS variables.
+- Shimmer: `bg-linear-to-r from-transparent via-white/40 to-transparent` with `animate-[shimmer_1.2s_ease-in-out_infinite]`.
+- Rounded tip: `border-radius: 0 9999px 9999px 0` (leading-end only) for `leftToRight`; mirrored for `rightToLeft`.
+- Width transition: `width 0.06s linear` for smooth per-frame updates.
+
+---
+
+## Edge Cases
+
+| Scenario | Behavior |
+| --- | --- |
+| `dismiss()` with no running bar | No-op — safe to call unconditionally |
+| Multiple `dismiss()` calls in a row | No-op after the first — `activeDisposers` is empty |
+| `start()` immediately after `dismiss()` | Old instance destroyed synchronously (no fade), new bar starts from 0% |
+| Bar stuck at 99% | Only `dismiss()` can push it to 100% — always call it in a `finally` block |
+| Calling `start()` before DOM exists | Will throw — avoid calling at module top-level in SSR environments |
+
+---
+
+## Do / Don't
+
+**Do**
+- Call `progressBar.start()` at the beginning of any async operation (navigation, fetch, upload).
+- Always call `progressBar.dismiss()` in a `finally` block to guarantee the bar completes.
+- Use `color: 'error'` to signal a failed operation before dismissing.
+- Import from the barrel: `import { progressBar } from 'solid-tom-ui'`.
+
+**Don't**
+- Don't place `<ProgressBar />` in JSX — there is no JSX API. Use the imperative calls only.
+- Don't rely on multiple bars running simultaneously — `start()` always clears previous instances first.
+- Don't pass a Tailwind class name to `color` — it expects a `BaseColorProps` token or a CSS color value.
+- Don't import `ProgressBarExample` in production — it is for documentation/demo only.
+---
+
+## Component Conventions
+
+> **CSS encoding**: internal CSS classes use short encoded names (e.g. `pb01`, `pb02`) per project convention.
+
+> **Unique IDs**: if this component needs to generate HTML `id` attributes, always use `createUniqueId()` from `solid-js` — never `Math.random()` or `Date.now()`.

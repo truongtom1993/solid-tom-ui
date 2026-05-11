@@ -1,0 +1,667 @@
+```tsx
+import { createColumnHelper } from '@tanstack/solid-table';
+import { Table } from '../table';
+
+type SalesReport = {
+  id: number;
+  region: string;
+  product: string;
+  q1Revenue: number;
+  q1Units: number;
+  q2Revenue: number;
+  q2Units: number;
+  q3Revenue: number;
+  q3Units: number;
+  q4Revenue: number;
+  q4Units: number;
+};
+
+const salesData: SalesReport[] = [
+  {
+    id: 1,
+    region: 'North',
+    product: 'Widget A',
+    q1Revenue: 120_000,
+    q1Units: 340,
+    q2Revenue: 135_000,
+    q2Units: 390,
+    q3Revenue: 98_000,
+    q3Units: 280,
+    q4Revenue: 210_000,
+    q4Units: 600,
+  },
+  {
+    id: 2,
+    region: 'South',
+    product: 'Widget B',
+    q2Revenue: 87_000,
+    q2Units: 210,
+    q1Revenue: 92_000,
+    q1Units: 270,
+    q3Revenue: 115_000,
+    q3Units: 320,
+    q4Revenue: 178_000,
+    q4Units: 510,
+  },
+  {
+    id: 3,
+    region: 'East',
+    product: 'Widget A',
+    q1Revenue: 75_000,
+    q1Units: 215,
+    q2Revenue: 81_000,
+    q2Units: 230,
+    q3Revenue: 93_000,
+    q3Units: 265,
+    q4Revenue: 142_000,
+    q4Units: 405,
+  },
+  {
+    id: 4,
+    region: 'West',
+    product: 'Widget C',
+    q1Revenue: 204_000,
+    q1Units: 580,
+    q2Revenue: 198_000,
+    q2Units: 560,
+    q3Revenue: 221_000,
+    q3Units: 630,
+    q4Revenue: 315_000,
+    q4Units: 895,
+  },
+  {
+    id: 5,
+    region: 'Central',
+    product: 'Widget B',
+    q1Revenue: 56_000,
+    q1Units: 160,
+    q2Revenue: 63_000,
+    q2Units: 180,
+    q3Revenue: 71_000,
+    q3Units: 200,
+    q4Revenue: 95_000,
+    q4Units: 270,
+  },
+];
+
+const salesCol = createColumnHelper<SalesReport>();
+
+const fmt = (n: number) => `$${n.toLocaleString()}`;
+
+const salesGroupedColumns = [
+  salesCol.group({
+    id: 'info',
+    header: 'Region / Product',
+    meta: { align: 'center' },
+    columns: [
+      salesCol.accessor('region', {
+        header: 'Region',
+        size: 100,
+        enableSorting: false,
+        meta: { align: 'center' },
+      }),
+      salesCol.accessor('product', {
+        header: 'Product',
+        size: 110,
+        enableSorting: false,
+        meta: { align: 'center' },
+      }),
+    ],
+  }),
+  salesCol.group({
+    id: 'q1',
+    header: 'Q1',
+    meta: { align: 'center' },
+    columns: [
+      salesCol.accessor('q1Revenue', {
+        header: 'Revenue',
+        size: 110,
+        cell: info => fmt(info.getValue()),
+        meta: { align: 'center' },
+      }),
+      salesCol.accessor('q1Units', {
+        header: 'Units',
+        size: 80,
+        meta: { align: 'center' },
+      }),
+    ],
+  }),
+  salesCol.group({
+    id: 'q2',
+    header: 'Q2',
+    meta: { align: 'center' },
+    columns: [
+      salesCol.accessor('q2Revenue', {
+        header: 'Revenue',
+        size: 110,
+        cell: info => fmt(info.getValue()),
+        meta: { align: 'center' },
+      }),
+      salesCol.accessor('q2Units', {
+        header: 'Units',
+        size: 80,
+        meta: { align: 'center' },
+      }),
+    ],
+  }),
+  salesCol.group({
+    id: 'q3',
+    header: 'Q3',
+    meta: { align: 'center' },
+    columns: [
+      salesCol.accessor('q3Revenue', {
+        header: 'Revenue',
+        size: 110,
+        cell: info => fmt(info.getValue()),
+        meta: { align: 'center' },
+      }),
+      salesCol.accessor('q3Units', {
+        header: 'Units',
+        size: 80,
+        meta: { align: 'center' },
+      }),
+    ],
+  }),
+  salesCol.group({
+    id: 'q4',
+    header: 'Q4',
+    meta: { align: 'center' },
+    columns: [
+      salesCol.accessor('q4Revenue', {
+        header: 'Revenue',
+        size: 110,
+        cell: info => fmt(info.getValue()),
+        meta: { align: 'center' },
+      }),
+      salesCol.accessor('q4Units', {
+        header: 'Units',
+        size: 80,
+        meta: { align: 'center' },
+      }),
+    ],
+  }),
+];
+
+export function TableGroupingHeader() {
+  return (
+    <div class="space-y-3 p-6">
+      <h2 class="text-lg font-semibold">1. Grouping Table Head (thead 2 rows)</h2>
+      <p class="text-sm opacity-60">
+        Dùng <code class="bg-base-200 rounded px-1">col.group()</code> để nhóm cột. TanStack Table
+        tự sinh 2 header rows trong <code class="bg-base-200 rounded px-1">{'<thead>'}</code>: row 1
+        là group headers với <code class="bg-base-200 rounded px-1">colSpan=2</code>, row 2 là leaf
+        headers. Divider giữa 2 rows xuất hiện nhờ{' '}
+        <code class="bg-base-200 rounded px-1">border.horizontal = true</code>.
+      </p>
+      <Table
+        columns={salesGroupedColumns}
+        data={salesData}
+        border={{ outer: true, horizontal: true, vertical: true }}
+        getRowId={row => String(row.id)}
+      />
+    </div>
+  );
+}
+
+const TOTAL_SALES_COLS = 10;
+
+const salesColumns = [
+  salesCol.accessor('region', {
+    header: 'Region',
+    size: 100,
+    enableSorting: false,
+    meta: { align: 'center' },
+  }),
+  salesCol.accessor('product', {
+    header: 'Product',
+    size: 110,
+    enableSorting: false,
+    meta: { align: 'center' },
+  }),
+  salesCol.group({
+    id: 'q1',
+    header: 'Q1',
+    meta: { align: 'center' },
+    columns: [
+      salesCol.accessor('q1Revenue', {
+        header: 'Revenue',
+        size: 110,
+        cell: info => fmt(info.getValue()),
+        meta: { align: 'center' },
+      }),
+      salesCol.accessor('q1Units', {
+        header: 'Units',
+        size: 80,
+        meta: { align: 'center' },
+      }),
+    ],
+  }),
+  salesCol.group({
+    id: 'q2',
+    header: 'Q2',
+    meta: { align: 'center' },
+    columns: [
+      salesCol.accessor('q2Revenue', {
+        header: 'Revenue',
+        size: 110,
+        cell: info => fmt(info.getValue()),
+        meta: { align: 'center' },
+      }),
+      salesCol.accessor('q2Units', {
+        header: 'Units',
+        size: 80,
+        meta: { align: 'center' },
+      }),
+    ],
+  }),
+  salesCol.group({
+    id: 'q3',
+    header: 'Q3',
+    meta: { align: 'center' },
+    columns: [
+      salesCol.accessor('q3Revenue', {
+        header: 'Revenue',
+        size: 110,
+        cell: info => fmt(info.getValue()),
+        meta: { align: 'center' },
+      }),
+      salesCol.accessor('q3Units', {
+        header: 'Units',
+        size: 80,
+        meta: { align: 'center' },
+      }),
+    ],
+  }),
+  salesCol.group({
+    id: 'q4',
+    header: 'Q4',
+    meta: { align: 'center' },
+    columns: [
+      salesCol.accessor('q4Revenue', {
+        header: 'Revenue',
+        size: 110,
+        cell: info => fmt(info.getValue()),
+        meta: { align: 'center' },
+      }),
+      salesCol.accessor('q4Units', {
+        header: 'Units',
+        size: 80,
+        meta: { align: 'center' },
+      }),
+    ],
+  }),
+];
+
+const cellColSpanOnCell = (
+  cell: import('@tanstack/solid-table').Cell<SalesReport, unknown>,
+  rowIndex: number,
+) => {
+  const row = salesData[rowIndex];
+  if (!row) return {};
+
+  if (row.product === 'Widget B') {
+    if (cell.column.id === 'product') return { colSpan: TOTAL_SALES_COLS - 1 };
+
+    const hiddenIds = [
+      'q1Revenue',
+      'q1Units',
+      'q2Revenue',
+      'q2Units',
+      'q3Revenue',
+      'q3Units',
+      'q4Revenue',
+      'q4Units',
+    ];
+    if (hiddenIds.includes(cell.column.id)) return { colSpan: 0 };
+  }
+  return {};
+};
+
+export function TableCellColSpan() {
+  return (
+    <div class="space-y-3 p-6">
+      <h2 class="text-lg font-semibold">
+        2. Body Cell colSpan — hàng "Widget B" chiếm toàn dòng + thead rowSpan
+      </h2>
+      <p class="text-sm opacity-60">
+        Prop <code class="bg-base-200 rounded px-1">onCell</code> trả về{' '}
+        <code class="bg-base-200 rounded px-1">{'{ colSpan: N }'}</code> cho cell cần mở rộng, và{' '}
+        <code class="bg-base-200 rounded px-1">{'{ colSpan: 0 }'}</code> cho các cell bị che để ẩn
+        chúng khỏi DOM. Đây là colSpan trên <code class="bg-base-200 rounded px-1">{'<td>'}</code>{' '}
+        trong <code class="bg-base-200 rounded px-1">{'<tbody>'}</code>. Ngoài ra, vì{' '}
+        <code class="bg-base-200 rounded px-1">region</code> và{' '}
+        <code class="bg-base-200 rounded px-1">product</code> là flat columns nằm cùng cấp với các
+        group Q1..Q4, TanStack tự tính <code class="bg-base-200 rounded px-1">rowSpan=2</code> —
+        chúng chiếm 2 dòng trong thead và căn giữa theo cả chiều dọc lẫn chiều ngang.
+      </p>
+      <Table
+        columns={salesColumns}
+        data={salesData}
+        border={{ outer: true, horizontal: true, vertical: true }}
+        getRowId={row => String(row.id)}
+        onCell={cellColSpanOnCell}
+      />
+    </div>
+  );
+}
+
+const cellRowSpanOnCell = (
+  cell: import('@tanstack/solid-table').Cell<SalesReport, unknown>,
+  rowIndex: number,
+) => {
+  if (cell.column.id === 'q2Revenue') {
+    if (rowIndex === 3) return { rowSpan: 2 };
+    if (rowIndex === 4) return { rowSpan: 0 };
+  }
+  return {};
+};
+
+export function TableCellRowSpan() {
+  return (
+    <div class="space-y-3 p-6">
+      <h2 class="text-lg font-semibold">
+        3. Body Cell rowSpan — "$198,000" (West · Q2 Revenue) chiếm 2 dòng
+      </h2>
+      <p class="text-sm opacity-60">
+        Trả về <code class="bg-base-200 rounded px-1">{'{ rowSpan: 2 }'}</code> cho cell dòng 4 và{' '}
+        <code class="bg-base-200 rounded px-1">{'{ rowSpan: 0 }'}</code> cho cell dòng 5 cùng cột để
+        ẩn nó (bị che bởi cell phía trên). Đây là rowSpan trên{' '}
+        <code class="bg-base-200 rounded px-1">{'<td>'}</code> trong{' '}
+        <code class="bg-base-200 rounded px-1">{'<tbody>'}</code>, khác với grouping header.
+      </p>
+      <Table
+        columns={salesColumns}
+        data={salesData}
+        border={{ outer: true, horizontal: true, vertical: true }}
+        getRowId={row => String(row.id)}
+        onCell={cellRowSpanOnCell}
+      />
+    </div>
+  );
+}
+
+const salesColumnsPerColOnCell = [
+  salesCol.accessor('region', {
+    header: 'Region',
+    size: 100,
+    enableSorting: false,
+    meta: { align: 'center' },
+  }),
+  salesCol.accessor('product', {
+    header: 'Product',
+    size: 110,
+    enableSorting: false,
+    meta: {
+      align: 'center',
+
+      onCell: (cell, rowIndex) => {
+        const row = salesData[rowIndex];
+        if (row?.product === 'Widget B') return { colSpan: TOTAL_SALES_COLS - 1 };
+        return {};
+      },
+    },
+  }),
+  salesCol.group({
+    id: 'q1',
+    header: 'Q1',
+    meta: { align: 'center' },
+    columns: [
+      salesCol.accessor('q1Revenue', {
+        header: 'Revenue',
+        size: 110,
+        cell: info => fmt(info.getValue()),
+        meta: {
+          align: 'center',
+          onCell: (_, rowIndex) => {
+            const row = salesData[rowIndex];
+            return row?.product === 'Widget B' ? { colSpan: 0 } : {};
+          },
+        },
+      }),
+      salesCol.accessor('q1Units', {
+        header: 'Units',
+        size: 80,
+        meta: {
+          align: 'center',
+          onCell: (_, rowIndex) => {
+            const row = salesData[rowIndex];
+            return row?.product === 'Widget B' ? { colSpan: 0 } : {};
+          },
+        },
+      }),
+    ],
+  }),
+  salesCol.group({
+    id: 'q2',
+    header: 'Q2',
+    meta: { align: 'center' },
+    columns: [
+      salesCol.accessor('q2Revenue', {
+        header: 'Revenue',
+        size: 110,
+        cell: info => fmt(info.getValue()),
+        meta: {
+          align: 'center',
+          onCell: (_, rowIndex) => {
+            const row = salesData[rowIndex];
+            return row?.product === 'Widget B' ? { colSpan: 0 } : {};
+          },
+        },
+      }),
+      salesCol.accessor('q2Units', {
+        header: 'Units',
+        size: 80,
+        meta: {
+          align: 'center',
+          onCell: (_, rowIndex) => {
+            const row = salesData[rowIndex];
+            return row?.product === 'Widget B' ? { colSpan: 0 } : {};
+          },
+        },
+      }),
+    ],
+  }),
+  salesCol.group({
+    id: 'q3',
+    header: 'Q3',
+    meta: { align: 'center' },
+    columns: [
+      salesCol.accessor('q3Revenue', {
+        header: 'Revenue',
+        size: 110,
+        cell: info => fmt(info.getValue()),
+        meta: {
+          align: 'center',
+          onCell: (_, rowIndex) => {
+            const row = salesData[rowIndex];
+            return row?.product === 'Widget B' ? { colSpan: 0 } : {};
+          },
+        },
+      }),
+      salesCol.accessor('q3Units', {
+        header: 'Units',
+        size: 80,
+        meta: {
+          align: 'center',
+          onCell: (_, rowIndex) => {
+            const row = salesData[rowIndex];
+            return row?.product === 'Widget B' ? { colSpan: 0 } : {};
+          },
+        },
+      }),
+    ],
+  }),
+  salesCol.group({
+    id: 'q4',
+    header: 'Q4',
+    meta: { align: 'center' },
+    columns: [
+      salesCol.accessor('q4Revenue', {
+        header: 'Revenue',
+        size: 110,
+        cell: info => fmt(info.getValue()),
+        meta: {
+          align: 'center',
+          onCell: (_, rowIndex) => {
+            const row = salesData[rowIndex];
+            return row?.product === 'Widget B' ? { colSpan: 0 } : {};
+          },
+        },
+      }),
+      salesCol.accessor('q4Units', {
+        header: 'Units',
+        size: 80,
+        meta: {
+          align: 'center',
+          onCell: (_, rowIndex) => {
+            const row = salesData[rowIndex];
+            return row?.product === 'Widget B' ? { colSpan: 0 } : {};
+          },
+        },
+      }),
+    ],
+  }),
+];
+
+export function TablePerColumnOnCell() {
+  return (
+    <div class="space-y-3 p-6">
+      <h2 class="text-lg font-semibold">
+        4. Per-column <code class="bg-base-200 rounded px-1">meta.onCell</code> — kết quả giống
+        Example 2
+      </h2>
+      <p class="text-sm opacity-60">
+        Thay vì dùng prop <code class="bg-base-200 rounded px-1">onCell</code> ở cấp{' '}
+        <code class="bg-base-200 rounded px-1">{'<Table>'}</code> và kiểm tra{' '}
+        <code class="bg-base-200 rounded px-1">cell.column.id</code> bên ngoài, mỗi column tự khai
+        báo callback trong <code class="bg-base-200 rounded px-1">meta.onCell</code>. Kết quả render
+        giống hệt Example 2 — hàng "Widget B" chiếm toàn dòng — nhưng logic span nằm ngay cạnh
+        column definition, gọn hơn và dễ bảo trì hơn.
+      </p>
+      <Table
+        columns={salesColumnsPerColOnCell}
+        data={salesData}
+        border={{ outer: true, horizontal: true, vertical: true }}
+        getRowId={row => String(row.id)}
+      />
+    </div>
+  );
+}
+
+const salesColumnsHeaderCell = [
+  salesCol.accessor('region', {
+    header: () => <span class="block w-full text-center">Region / Product</span>,
+    size: 210,
+    enableSorting: false,
+    meta: {
+      align: 'center',
+      onHeaderCell: () => ({ colSpan: 2, rowSpan: 2 }),
+    },
+  }),
+  salesCol.accessor('product', {
+    header: 'Product',
+    size: 110,
+    enableSorting: false,
+    meta: {
+      align: 'center',
+      onHeaderCell: () => ({ colSpan: 0 }),
+    },
+  }),
+  salesCol.group({
+    id: 'q1',
+    header: 'Q1',
+    meta: { align: 'center' },
+    columns: [
+      salesCol.accessor('q1Revenue', {
+        header: 'Revenue',
+        size: 110,
+        cell: info => fmt(info.getValue()),
+        meta: { align: 'center' },
+      }),
+      salesCol.accessor('q1Units', { header: 'Units', size: 80, meta: { align: 'center' } }),
+    ],
+  }),
+  salesCol.group({
+    id: 'q2',
+    header: 'Q2',
+    meta: { align: 'center' },
+    columns: [
+      salesCol.accessor('q2Revenue', {
+        header: 'Revenue',
+        size: 110,
+        cell: info => fmt(info.getValue()),
+        meta: { align: 'center' },
+      }),
+      salesCol.accessor('q2Units', { header: 'Units', size: 80, meta: { align: 'center' } }),
+    ],
+  }),
+  salesCol.group({
+    id: 'q3',
+    header: 'Q3',
+    meta: { align: 'center' },
+    columns: [
+      salesCol.accessor('q3Revenue', {
+        header: 'Revenue',
+        size: 110,
+        cell: info => fmt(info.getValue()),
+        meta: { align: 'center' },
+      }),
+      salesCol.accessor('q3Units', { header: 'Units', size: 80, meta: { align: 'center' } }),
+    ],
+  }),
+  salesCol.group({
+    id: 'q4',
+    header: 'Q4',
+    meta: { align: 'center' },
+    columns: [
+      salesCol.accessor('q4Revenue', {
+        header: 'Revenue',
+        size: 110,
+        cell: info => fmt(info.getValue()),
+        meta: { align: 'center' },
+      }),
+      salesCol.accessor('q4Units', { header: 'Units', size: 80, meta: { align: 'center' } }),
+    ],
+  }),
+];
+
+export function TablePerColumnOnHeaderCell() {
+  return (
+    <div class="space-y-3 p-6">
+      <h2 class="text-lg font-semibold">
+        5. Per-column <code class="bg-base-200 rounded px-1">meta.onHeaderCell</code> — gộp 2 header
+        cell thành 1
+      </h2>
+      <p class="text-sm opacity-60">
+        <code class="bg-base-200 rounded px-1">meta.onHeaderCell</code> cho phép ghi đè{' '}
+        <code class="bg-base-200 rounded px-1">colSpan</code> /{' '}
+        <code class="bg-base-200 rounded px-1">rowSpan</code> của{' '}
+        <code class="bg-base-200 rounded px-1">{'<th>'}</code> do TanStack tính tự động. Ở đây{' '}
+        <code class="bg-base-200 rounded px-1">region</code> nhận{' '}
+        <code class="bg-base-200 rounded px-1">{'{ colSpan: 2 }'}</code> để chiếm cả 2 cột, còn{' '}
+        <code class="bg-base-200 rounded px-1">product</code> nhận{' '}
+        <code class="bg-base-200 rounded px-1">{'{ colSpan: 0 }'}</code> để ẩn header cell đó khỏi
+        DOM.
+      </p>
+      <Table
+        columns={salesColumnsHeaderCell}
+        data={salesData}
+        border={{ outer: true, horizontal: true, vertical: true }}
+        getRowId={row => String(row.id)}
+      />
+    </div>
+  );
+}
+
+export function TableHeaderExample() {
+  return (
+    <div class="divide-base-300 divide-y">
+      <TableGroupingHeader />
+      <TableCellColSpan />
+      <TableCellRowSpan />
+      <TablePerColumnOnCell />
+      <TablePerColumnOnHeaderCell />
+    </div>
+  );
+}
+```

@@ -1,0 +1,255 @@
+## COMPONENT IDENTITY
+- **Import**: `import { Avatar } from 'solid-tom-ui';`
+- **Exports**: `Avatar` (main), `Avatar.Group` (sub-component)
+- **Framework**: SolidJS
+- **Purpose**: Display user profile images, initials, or icon placeholders; supports groups
+
+## TYPE SIGNATURES
+
+### Avatar (single)
+```typescript
+import { Avatar } from 'solid-tom-ui';
+
+type AvatarProps = {
+  width: string | number;           // REQUIRED: size in px (number) or CSS units (string)
+  image?: string;                   // Image URL — if provided, renders <img>
+  placeholder?: SolidComponent;     // Fallback JSX shown when no image (initials, icon, etc.)
+  mask?: 'heart' | 'squircle' | 'hexagon';  // Shape mask; omit for default circle
+  status?: 'online' | 'offline';    // Status indicator dot; omit for no indicator
+  class?: {
+    avatar?: string;                // Extra classes on the avatar container div
+  };
+};
+```
+
+### Avatar.Group
+```typescript
+type AvatarGroup = {
+  width: string | number;           // REQUIRED: uniform size for all avatars in group
+  avatars: Omit<AvatarProps, 'width' | 'status'>[];  // REQUIRED: array of avatar configs
+  counter?: number;                 // Show "+N" badge at end of group
+  class?: string;                   // Extra classes on the group container
+};
+```
+
+## KEY RULES
+- `width` is **always required** on both `Avatar` and `Avatar.Group`
+- `image` and `placeholder` are mutually exclusive in intent — if `image` is set and loads, `placeholder` is not shown
+- `Avatar.Group` does **not** support per-avatar `status` — statuses are stripped in the group type
+- In `Avatar.Group`, the `width` prop applies uniformly to all avatars; individual avatar items cannot override it
+
+## WIDTH SPECIFICATION
+```tsx
+// Number → interpreted as pixels
+<Avatar width={48} image={url} />   // 48px × 48px
+
+// String → any valid CSS unit
+<Avatar width="3rem" image={url} />
+<Avatar width="5rem" image={url} />
+<Avatar width="100px" image={url} />
+```
+
+## MASK (SHAPE) OPTIONS
+| `mask` value | Shape |
+|-------------|-------|
+| `undefined` (omit) | Circle (default) |
+| `"squircle"` | Rounded square |
+| `"hexagon"` | Hexagonal |
+| `"heart"` | Heart shape |
+
+## STATUS INDICATOR
+| `status` value | Indicator |
+|---------------|-----------|
+| `undefined` (omit) | None |
+| `"online"` | Green dot |
+| `"offline"` | Gray dot |
+
+## USAGE PATTERNS
+
+### Basic image avatar (circle, no status)
+```tsx
+<Avatar image="https://example.com/user.jpg" width={48} />
+```
+
+### Sized avatar
+```tsx
+// Common sizes: 32, 48, 64, 80, 96 (pixels)
+<Avatar image={userPhotoUrl} width={32} />   // small (e.g., in list rows)
+<Avatar image={userPhotoUrl} width={48} />   // medium (e.g., comment threads)
+<Avatar image={userPhotoUrl} width={64} />   // large (e.g., profile cards)
+<Avatar image={userPhotoUrl} width={96} />   // xl (e.g., profile page header)
+```
+
+### With online/offline status
+```tsx
+<Avatar image={userPhotoUrl} width={48} status="online" />
+<Avatar image={userPhotoUrl} width={48} status="offline" />
+```
+
+### With mask (non-circle shape)
+```tsx
+<Avatar image={userPhotoUrl} width={64} mask="squircle" />
+<Avatar image={userPhotoUrl} width={64} mask="hexagon" />
+<Avatar image={userPhotoUrl} width={64} mask="heart" />
+```
+
+### Placeholder — initials (when no image)
+```tsx
+<Avatar
+  width={64}
+  placeholder={
+    <div class="bg-neutral text-neutral-content flex h-16 w-16 items-center justify-center rounded-full">
+      <span class="text-xl">AB</span>
+    </div>
+  }
+/>
+```
+
+### Placeholder — icon (generic user silhouette)
+```tsx
+<Avatar
+  width={64}
+  placeholder={
+    <div class="bg-primary text-primary-content flex h-16 w-16 items-center justify-center rounded-full">
+      <DynamicIcon name="user" size={32} />
+    </div>
+  }
+/>
+```
+
+### Placeholder with status
+```tsx
+<Avatar
+  width={64}
+  status="online"
+  placeholder={
+    <div class="bg-accent text-accent-content flex h-16 w-16 items-center justify-center rounded-full">
+      <span class="text-xl">JD</span>
+    </div>
+  }
+/>
+```
+
+### Avatar.Group — basic group
+```tsx
+const users = [
+  { image: 'https://example.com/user1.jpg' },
+  { image: 'https://example.com/user2.jpg' },
+  { image: 'https://example.com/user3.jpg' },
+];
+
+<Avatar.Group width={48} avatars={users} />
+```
+
+### Avatar.Group — with overflow counter
+```tsx
+// Shows avatars + "+12" badge at the end
+<Avatar.Group
+  width={48}
+  avatars={[
+    { image: url1 },
+    { image: url2 },
+    { image: url3 },
+  ]}
+  counter={12}
+/>
+```
+
+### Avatar.Group — with custom masks
+```tsx
+<Avatar.Group
+  width={48}
+  avatars={[
+    { image: url1, mask: 'squircle' },
+    { image: url2, mask: 'squircle' },
+    { image: url3, mask: 'squircle' },
+  ]}
+  counter={5}
+/>
+```
+
+### Avatar.Group — with placeholder avatars
+```tsx
+<Avatar.Group
+  width={40}
+  avatars={[
+    { image: url1 },
+    {
+      placeholder: (
+        <div class="bg-neutral text-neutral-content flex items-center justify-center rounded-full" style={{ width: '40px', height: '40px' }}>
+          <span class="text-sm">AB</span>
+        </div>
+      )
+    },
+    { image: url3 },
+  ]}
+  counter={8}
+/>
+```
+
+## DECISION RULES
+
+**Single Avatar vs Avatar.Group:**
+- One user → `Avatar`
+- Multiple users shown together (team, participants, collaborators) → `Avatar.Group`
+
+**Image vs placeholder:**
+- User has a profile photo → use `image`
+- No profile photo → use `placeholder` with initials derived from user's name
+- Unknown user → use `placeholder` with a generic user icon
+
+**Width selection:**
+- Navigation bar / list row → `32` or `40`
+- Comment / chat UI → `48`
+- Card / profile preview → `64`
+- Full profile page header → `80` or `96`
+- Group avatars → smaller size (e.g., `40` or `48`) since they overlap
+
+**Mask selection:**
+- Standard user avatar → no mask (circle)
+- App/bot/system avatar → `squircle` or `hexagon`
+- Decorative / brand avatar → `heart` or any mask
+
+**Status dots:**
+- Real-time presence system → use `status`
+- Static display (profile page without live data) → omit `status`
+
+**Counter in Avatar.Group:**
+- Total participants count is known → set `counter` to (total - displayed) or total count
+- If all participants are shown → omit `counter`
+
+## PLACEHOLDER SIZING NOTE
+When using `placeholder`, the inner element's dimensions must match the `width` prop manually:
+```tsx
+// width={64} → inner element must be 64px × 64px
+<Avatar
+  width={64}
+  placeholder={
+    <div class="flex h-16 w-16 items-center justify-center rounded-full bg-primary text-primary-content">
+      {/* h-16 = 64px, w-16 = 64px */}
+      <span>AB</span>
+    </div>
+  }
+/>
+```
+
+## ANTI-PATTERNS
+```tsx
+// ❌ Missing required width
+<Avatar image={url} />  // TypeScript error
+
+// ❌ Setting status on Avatar.Group items (not supported — stripped from type)
+<Avatar.Group width={48} avatars={[{ image: url, status: 'online' }]} />  // TypeScript error
+
+// ❌ Mismatched placeholder size vs width prop
+<Avatar width={96} placeholder={<div class="h-8 w-8 rounded-full bg-gray-300" />} />
+// ✅ Match placeholder dimensions to width
+<Avatar width={96} placeholder={<div class="h-24 w-24 rounded-full bg-gray-300" />} />
+```
+---
+
+## Component Conventions
+
+> **CSS encoding**: internal CSS classes use short encoded names (e.g. `av01`, `av02`) per project convention.
+
+> **Unique IDs**: if this component needs to generate HTML `id` attributes, always use `createUniqueId()` from `solid-js` — never `Math.random()` or `Date.now()`.

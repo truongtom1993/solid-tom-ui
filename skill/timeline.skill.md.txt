@@ -1,0 +1,247 @@
+## COMPONENT IDENTITY
+- **Import**: `import { Timeline } from 'solid-tom-ui';`
+- **Export**: `Timeline` (named export), `TimelineItem` (type export)
+- **Framework**: SolidJS
+- **Purpose**: Display a sequence of events, milestones, or process steps in chronological order — for history/audit trails, NOT a navigation wizard (use `Steps` for that)
+
+**Good fit:**
+- Order tracking (e-commerce shipment status)
+- Audit / activity log (newest-first with `reverse`)
+- Multi-level approval workflow
+- Project roadmap or release history
+
+---
+
+## Props Reference
+
+### `TimelineProps`
+
+| Prop          | Type                                | Default        | Description |
+|---------------|-------------------------------------|----------------|-------------|
+| `items`       | `TimelineItem[]`                    | `[]`           | Array of timeline items |
+| `color`       | `BaseColorProps`                    | `'primary'`    | Global color for the entire timeline |
+| `orientation` | `'vertical' \| 'horizontal'`        | `'vertical'`   | Layout direction |
+| `mode`        | `'start' \| 'end' \| 'alternate'`   | `'alternate'`  | Content position relative to the axis |
+| `reverse`     | `boolean`                           | `false`        | Reverse the display order (does NOT mutate the data array) |
+| `class`       | `TimelineClassSlots`                | —              | Per-slot class overrides |
+
+All other native `<div>` HTML attributes are forwarded to the root element.
+
+### `TimelineItem`
+
+| Prop        | Type                                              | Description |
+|-------------|---------------------------------------------------|-------------|
+| `title`     | `JSXElement`                                      | Short milestone label |
+| `content`   | `JSXElement`                                      | Detail text or description |
+| `timestamp` | `JSXElement`                                      | Date, time, or relative label |
+| `icon`      | `() => JSX.Element`                               | **Factory function** returning a custom icon (replaces default icon) |
+| `color`     | `BaseColorProps`                                  | Per-item color — overrides global `color` |
+| `status`    | `'pending' \| 'active' \| 'done' \| 'error'`      | Item status — drives default color and icon |
+| `loading`   | `boolean`                                         | Show a spinner instead of the icon |
+| `position`  | `'start' \| 'end'`                                | Override content side for this specific item |
+
+### Class Slots
+
+```ts
+class?: {
+  root?:        string;  // outermost wrapper div
+  item?:        string;  // each timeline row/column
+  dot?:         string;  // circular marker
+  connector?:   string;  // line connecting dots
+  label?:       string;  // column/row that holds content
+  content?:     string;  // inner content box
+  title?:       string;  // title text
+  description?: string;  // content/detail text
+  timestamp?:   string;  // timestamp text
+}
+```
+
+---
+
+## Color Priority
+
+Color is resolved per-item using this chain (first match wins):
+
+```
+item.color  →  STATUS_COLOR[item.status]  →  global props.color
+```
+
+Default status → color mapping:
+
+| Status    | Auto color  | Default icon  |
+|-----------|-------------|---------------|
+| `done`    | `success`   | Checkmark     |
+| `active`  | `primary`   | Empty dot + ring pulse |
+| `error`   | `error`     | Alert circle  |
+| `pending` | `neutral`   | Clock         |
+
+**Rule:** Only set `item.color` when you need to override the automatic status color.
+Redundant color props (e.g. `status="done" color="success"`) are harmless but noisy.
+
+---
+
+## Mode — Layout Behavior
+
+| Mode          | Vertical                          | Horizontal                      |
+|---------------|-----------------------------------|---------------------------------|
+| `'alternate'` | Content alternates left / right (default) | Content alternates top / bottom |
+| `'start'`     | All content on the **left**       | All content **above** the axis  |
+| `'end'`       | All content on the **right**      | All content **below** the axis  |
+
+**Decision guide:**
+- Use `mode="alternate"` for rich timelines with long descriptions (balanced layout).
+- Use `mode="end"` for compact audit logs or sidebar widgets (all content on one side).
+- Use `mode="start"` when you need a right-to-left reading order.
+
+Individual items can override `mode` via `position="start" | "end"` on the item itself.
+
+---
+
+## Common Patterns
+
+### Basic order tracking
+
+```tsx
+const items: TimelineItem[] = [
+  { title: 'Order placed',    status: 'done',    timestamp: '08:30' },
+  { title: 'Payment verified', status: 'done',   timestamp: '08:32' },
+  { title: 'Packing',         status: 'active',  loading: true },
+  { title: 'Shipped',         status: 'pending', timestamp: 'ETA 14:00' },
+  { title: 'Delivered',       status: 'pending' },
+];
+
+<Timeline items={items} color="primary" />
+```
+
+### Audit log — newest first
+
+```tsx
+<Timeline
+  items={auditLogs}
+  color="neutral"
+  orientation="vertical"
+  mode="end"
+  reverse
+  class={{ root: 'max-w-sm' }}
+/>
+```
+
+### Horizontal process steps
+
+```tsx
+<Timeline
+  items={steps}
+  orientation="horizontal"
+  mode="alternate"
+  color="success"
+  class={{ root: 'w-full' }}
+/>
+```
+
+### Custom icon per item
+
+```tsx
+import Truck from 'lucide-solid/icons/truck';
+
+// icon must be a factory function: () => JSX.Element
+const items: TimelineItem[] = [
+  { title: 'Shipped', status: 'done', icon: () => <Truck size={14} /> },
+];
+```
+
+### Per-item color
+
+```tsx
+const items: TimelineItem[] = [
+  { title: 'Success', status: 'done',  color: 'success' },
+  { title: 'Warning', status: 'error', color: 'warning' },
+  { title: 'Info',    status: 'active', color: 'info' },
+];
+<Timeline items={items} orientation="vertical" mode="end" />
+```
+
+### Force a specific item position (override `mode`)
+
+```tsx
+// mode="alternate" but item B is always on the right
+const items: TimelineItem[] = [
+  { title: 'A', status: 'done' },
+  { title: 'B (forced right)', status: 'done', position: 'end' },
+  { title: 'C', status: 'active' },
+];
+<Timeline items={items} mode="alternate" />
+```
+
+### Reactive loading state (SolidJS signal)
+
+```tsx
+const [isProcessing, setIsProcessing] = createSignal(false);
+
+const items = (): TimelineItem[] => [
+  { title: 'Step 1', status: 'done' },
+  {
+    title: 'Step 2',
+    status: isProcessing() ? 'active' : 'done',
+    loading: isProcessing(),
+    content: isProcessing() ? 'Processing…' : 'Completed',
+  },
+  { title: 'Step 3', status: 'pending' },
+];
+
+<Timeline items={items()} color="primary" mode="end" />
+```
+
+### Style slot overrides
+
+```tsx
+<Timeline
+  items={items}
+  color="accent"
+  mode="end"
+  class={{
+    root: 'bg-base-200 rounded-2xl p-5 max-w-sm',
+    title: 'text-base font-semibold',
+    description: 'italic text-sm',
+    timestamp: 'font-mono text-xs',
+  }}
+/>
+```
+
+---
+
+## Gotchas & Constraints
+
+### `icon` must be a factory function
+```tsx
+// WRONG — JSX evaluated immediately, not reactive
+icon: <Truck size={14} />
+
+// CORRECT — factory function
+icon: () => <Truck size={14} />
+```
+
+### `loading` overrides `icon`
+When `loading={true}`, the custom icon is hidden and replaced by a spinner.
+The icon reappears automatically once `loading` is set back to `false`.
+
+### Connector color is global
+The connector line uses the global `--tl-color` CSS variable (set by the root `color` prop).
+Per-item connector color is not supported out of the box — override via `class.connector`
+and a CSS custom property if needed.
+
+### `reverse` does not mutate data
+`reverse={true}` creates a reversed copy internally. The original `items` array is
+never modified. Do not pre-reverse your data array and also pass `reverse` — that
+would double-reverse and show original order.
+
+### Horizontal layout — item count limit
+Each item takes `flex: 1` of the container width. Keep horizontal timelines to **≤ 6 items**
+to prevent content from becoming too narrow to read.
+
+### `mode="start"` vertical — right column collapses
+In `mode="start"`, the right column has `width: 0`. Any content accidentally rendered
+there (e.g. via a wrong `position` override) will be clipped and invisible.
+
+### `title`, `content`, `timestamp` accept `JSXElement`
+All three fields accept any JSX, not just strings. You can embed badges, icons,
+or interactive elements — but keep them lightweight since they render once per item.

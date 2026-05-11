@@ -1,0 +1,489 @@
+## COMPONENT IDENTITY
+- **Import**: `import { Input } from 'solid-tom-ui';`
+- **Export**: `Input` (main router component with sub-components attached)
+- **Framework**: SolidJS
+- **Purpose**: Unified input router — the `type` prop selects which variant renders (text, textarea, password, number, color, date, range, OTP)
+
+## SUB-COMPONENTS & MOUNT POINTS
+
+```
+Input                   → routes based on type prop
+├── Input.Text          → type="text"
+├── Input.TextArea      → type="textarea"
+├── Input.Password      → type="password"
+├── Input.Number        → type="number"
+├── Input.Color         → type="color"
+├── Input.Date          → type="date"
+├── Input.Range         → type="range" (delegates to Slider)
+└── Input.OTP           → type="otp"
+```
+
+Both syntaxes are valid:
+
+```tsx
+<Input type="text" ... />         // router syntax
+<Input.Text type="text" ... />    // direct sub-component syntax
+```
+
+---
+
+## SHARED BASE PROPS (most variants inherit these)
+
+```typescript
+interface InputBaseProps {
+  value?: string;
+  variant?: 'outline' | 'borderless' | 'filled'; // default: 'outline'
+  allowClear?: boolean; // default: true (shows ✕ button)
+  disabled?: boolean; // default: false
+  id?: string;
+  size?: '4xs' | '3xs' | '2xs' | 'xs' | 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl' | '4xl'; // default: 'md'
+  color?: 'neutral' | 'primary' | 'secondary' | 'accent' | 'info' | 'success' | 'warning' | 'error'; // default: 'info'
+  placeholder?: string; // default: ''
+  prefixIcon?: JSXElement; // icon/element on the left inside input
+  suffixIcon?: JSXElement; // icon/element on the right inside input
+  class?: Partial<Record<'root' | 'input', string>>; // scoped class overrides
+  onInput?: (value: string, e: Event) => void; // fires on every keystroke
+  onChange?: (value: string, e: Event) => void; // fires on committed change
+  onPressEnter?: (value: string, e: KeyboardEvent) => void;
+  onBlur?: (value: string, e: Event) => void;
+}
+```
+
+### Base defaults
+
+| Prop          | Default     |
+| ------------- | ----------- |
+| `variant`     | `"outline"` |
+| `allowClear`  | `true`      |
+| `color`       | `"info"`    |
+| `size`        | `"md"`      |
+| `placeholder` | `""`        |
+| `disabled`    | `false`     |
+
+---
+
+## VARIANT: type="text"
+
+```typescript
+// All InputBaseProps +
+{
+  type: 'text';
+  typeOrigin?: string;              // Override the native input type attribute
+  maskOptions?: FactoryOpts & {     // IMask integration
+    onAccept?: (value?: string, unmaskedValue?: string) => void;
+  };
+}
+```
+
+### Usage — basic
+
+```tsx
+<Input type="text" placeholder="Enter name..." />
+<Input type="text" variant="filled" color="primary" placeholder="Search..." />
+<Input type="text" variant="borderless" size="lg" placeholder="Large borderless" />
+```
+
+### Usage — with prefix/suffix icons
+
+```tsx
+<Input
+  type="text"
+  placeholder="Search..."
+  prefixIcon={<DynamicIcon name="search" size={16} class="opacity-50" />}
+/>
+
+<Input
+  type="text"
+  placeholder="Email"
+  suffixIcon={<DynamicIcon name="mail" size={16} class="opacity-50" />}
+/>
+
+// Text prefix/suffix
+<Input
+  type="text"
+  placeholder="Enter URL"
+  prefixIcon={<span class="text-sm opacity-60">https://</span>}
+  suffixIcon={<span class="text-sm opacity-60">.com</span>}
+/>
+```
+
+### Usage — IMask patterns
+
+```tsx
+// Phone: 0xxx xxx xxx
+<Input
+  type="text"
+  placeholder="0xxx xxx xxx"
+  maskOptions={{
+    mask: '0000 000 000',
+    onAccept: (_masked, unmasked) => setPhone(unmasked ?? ''),
+  }}
+/>
+
+// Credit card: xxxx xxxx xxxx xxxx
+<Input
+  type="text"
+  placeholder="xxxx xxxx xxxx xxxx"
+  maskOptions={{
+    mask: '0000 0000 0000 0000',
+    onAccept: (_masked, unmasked) => setCard(unmasked ?? ''),
+  }}
+/>
+
+// Auto uppercase
+<Input
+  type="text"
+  maskOptions={{
+    mask: /^[A-Z\s]*$/i,
+    prepare: (str: string) => str.toUpperCase(),
+    onAccept: (value) => setValue(value ?? ''),
+  }}
+/>
+
+// Email with auto-lowercase + character restriction
+<Input
+  type="text"
+  placeholder="example@domain.com"
+  maskOptions={{
+    mask: /^[a-z0-9._%+-]*@?[a-z0-9.-]*\.?[a-z]*$/i,
+    prepare: (str: string) => str.toLowerCase(),
+    onAccept: (value) => setEmail(value ?? ''),
+  }}
+/>
+
+// Custom pattern: ABC-1234-XYZ
+<Input
+  type="text"
+  placeholder="ABC-1234-XYZ"
+  maskOptions={{
+    mask: 'aaa-0000-aaa',
+    definitions: { a: /[A-Za-z]/ },
+    prepare: (str: string) => str.toUpperCase(),
+    onAccept: (value) => setValue(value ?? ''),
+  }}
+/>
+```
+
+### Usage — disable clear button
+
+```tsx
+<Input type="text" allowClear={false} placeholder="No clear button" />
+```
+
+---
+
+## VARIANT: type="password"
+
+```typescript
+// Omit<InputBaseProps, 'suffixIcon'> + (suffixIcon is internally used for eye toggle)
+{
+  type: 'password';
+}
+```
+
+- Eye icon toggle auto-injected as `suffixIcon` — do NOT pass `suffixIcon`
+- 1-second auto-hide after revealing password
+
+```tsx
+<Input type="password" placeholder="Enter password" />
+<Input type="password" color="error" placeholder="Confirm password" />
+<Input type="password" variant="filled" size="lg" />
+```
+
+---
+
+## VARIANT: type="number"
+
+```typescript
+// All InputBaseProps +
+{
+  type: 'number';
+  wheel?: boolean;        // Enable mouse wheel increment/decrement (default: false)
+  keyboard?: boolean;     // Enable arrow key Up/Down increment/decrement (default: false)
+  offset?: number;        // Step per increment (default: 1)
+  maskOptions?: {
+    min?: number;
+    max?: number;
+    thousandsSeparator?: string;   // default: '_'
+    radix?: string;                // decimal separator (default: '.')
+    scale?: number;                // decimal places
+    normalizeZeros?: boolean;
+    padFractionalZeros?: boolean;
+    onAccept?: (value?: string, unmaskedValue?: string) => void;
+  };
+}
+```
+
+```tsx
+// Basic number
+<Input type="number" placeholder="Enter number..." />
+
+// With keyboard & wheel control
+<Input type="number" wheel keyboard onChange={setValue} />
+
+// Custom step
+<Input type="number" wheel keyboard offset={5} />
+
+// Min/max constraints
+<Input type="number" wheel keyboard maskOptions={{ min: 0, max: 100 }} />
+
+// Negative numbers
+<Input type="number" wheel keyboard maskOptions={{ min: -100, max: 100 }} />
+
+// Decimal (2 decimal places, step 0.1)
+<Input type="number" wheel keyboard offset={0.1} maskOptions={{ scale: 2, radix: '.' }} />
+
+// Thousands separator
+<Input type="number" maskOptions={{ thousandsSeparator: ',' }} />
+
+// Currency prefix
+<Input type="number" prefixIcon={<span class="text-sm opacity-60">$</span>} />
+
+// Percentage suffix
+<Input type="number" suffixIcon={<span class="text-sm opacity-60">%</span>} />
+```
+
+---
+
+## VARIANT: type="textarea"
+
+```typescript
+// Omit<InputBaseProps, 'prefixIcon' | 'suffixIcon' | 'onPressEnter' | 'size'> +
+{
+  type: 'textarea';
+  size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';  // Smaller size set than text input
+}
+```
+
+- **No** `prefixIcon`, `suffixIcon`, or `onPressEnter`
+- Resizable vertically by default
+- Has `allowClear` support
+
+```tsx
+<Input type="textarea" placeholder="Enter description..." />
+<Input type="textarea" size="lg" variant="filled" color="primary" />
+<Input type="textarea" allowClear={false} rows={5} placeholder="Notes" />
+```
+
+---
+
+## VARIANT: type="color"
+
+```typescript
+// Omit<InputBaseProps, 'prefixIcon'> +
+{
+  type: 'color';
+}
+```
+
+- Shows a color swatch preview as prefix (auto-managed)
+- Do NOT pass `prefixIcon` — it is used internally for the color preview
+
+```tsx
+<Input type="color" />
+<Input type="color" value="#ff6b6b" onChange={(hex) => setColor(hex)} />
+```
+
+---
+
+## VARIANT: type="date"
+
+```typescript
+// All InputBaseProps +
+{
+  type: 'date';
+}
+```
+
+```tsx
+<Input type="date" />
+<Input type="date" color="primary" size="md" />
+```
+
+---
+
+## VARIANT: type="range"
+
+```typescript
+{
+  type: 'range';
+}
+// Delegates all props to the Slider component
+```
+
+```tsx
+<Input type="range" />
+```
+
+---
+
+## VARIANT: type="otp"
+
+```typescript
+{
+  type: 'otp';
+  length?: number;              // Number of input boxes (default: 6)
+  inputMode?: 'numeric' | 'text';   // default: 'numeric'
+  allowedChars?: RegExp;        // Pattern for valid characters (default: /^[0-9]$/)
+  color?: BaseColorProps;       // Focus ring color
+  separator?: SolidComponent;   // Custom separator between boxes
+  disabled?: boolean;           // default: false
+  value?: string;               // Pre-fill initial value
+  class?: Partial<Record<'root' | 'inputWrap' | 'input', string>>;
+  onComplete?: (otp: string) => void;  // Fires when ALL boxes are filled
+  onChange?: (otp: string) => void;    // Fires on any change
+  onBlur?: (otp: string) => void;
+}
+```
+
+### Keyboard behavior (built-in, no config needed):
+
+- Typing → advances to next box automatically
+- Backspace on non-empty → clears current box, stays
+- Backspace on empty → moves to previous box and clears
+- Delete → clears current box without moving
+- Arrow Left/Right → moves focus between boxes
+- Tab / Shift+Tab → circular navigation within OTP group
+- Paste → distributes pasted string across boxes, filtering by `allowedChars`
+
+```tsx
+// 6-digit numeric OTP (default)
+<Input
+  type="otp"
+  length={6}
+  onChange={setOtp}
+  onComplete={(code) => verifyOTP(code)}
+  color="primary"
+/>
+
+// 4-digit PIN
+<Input type="otp" length={4} onComplete={handlePIN} />
+
+// Alphanumeric code (e.g., invite code)
+<Input
+  type="otp"
+  length={6}
+  inputMode="text"
+  allowedChars={/^[A-Za-z0-9]$/}
+  onChange={setCode}
+  onComplete={(code) => redeemCode(code)}
+/>
+
+// Disabled with prefilled value
+<Input type="otp" length={6} disabled value="123456" />
+
+// With initial partial value
+<Input type="otp" length={6} value="123" onComplete={handleComplete} />
+
+// Direct sub-component
+<Input.OTP type="otp" length={5} onComplete={handleComplete} />
+```
+
+---
+
+## VARIANT & SIZE MATRIX
+
+### Variants (all applicable types)
+
+| Variant      | Appearance                       | Use case                       |
+| ------------ | -------------------------------- | ------------------------------ |
+| `outline`    | Border, transparent bg (default) | Standard form fields           |
+| `filled`     | Solid background fill            | Emphasized / standalone inputs |
+| `borderless` | No border, no background         | Inline editing, minimal UI     |
+
+### Colors (focus ring / accent color)
+
+| Color     | Focus ring color | Semantic use           |
+| --------- | ---------------- | ---------------------- |
+| `info`    | Blue (default)   | General text input     |
+| `primary` | Brand primary    | Main form field        |
+| `success` | Green            | Valid input            |
+| `error`   | Red              | Validation error state |
+| `warning` | Amber            | Warning state          |
+| `neutral` | Gray             | Low emphasis           |
+
+---
+
+## DECISION RULES
+
+**Choosing input type:**
+
+- Free text → `type="text"`
+- Secret / credential → `type="password"`
+- Integer / float / currency → `type="number"`
+- Multi-line content → `type="textarea"`
+- Verification code / PIN → `type="otp"`
+- Hex color picker → `type="color"`
+- Date selection → `type="date"`
+- Slider value → `type="range"`
+
+**Choosing variant:**
+
+- Default form → `outline`
+- Card / floating label form → `filled`
+- Table cell inline edit → `borderless`
+
+**Choosing size:**
+
+- Standard form → `md` (default)
+- Compact/dense UI → `sm` or `xs`
+- Hero / search bar → `lg` or `xl`
+
+**IMask usage (type="text"):**
+
+- Need formatted display (phone, credit card, date) → use `maskOptions.mask` string pattern
+- Need character restriction → use `maskOptions.mask` as RegExp
+- Need value transformation (uppercase/lowercase) → use `maskOptions.prepare`
+- Need raw vs formatted value separately → use `onAccept(maskedValue, unmaskedValue)`
+
+**Number input controls:**
+
+- Quantity selector (cart, seats) → `wheel + keyboard + offset=1`
+- Price / percentage → `wheel + keyboard + maskOptions.scale=2`
+- Bounded range (0–100) → add `maskOptions.min + maskOptions.max`
+
+**OTP length:**
+
+- Standard SMS/email OTP → `length={6}`
+- PIN code → `length={4}`
+- Invite / promo code → `length` matching code format
+
+---
+
+## ANTI-PATTERNS
+
+```tsx
+// ❌ Missing type prop — required discriminator
+<Input placeholder="Enter..." />
+
+// ❌ Passing suffixIcon to type="password" — internally reserved for eye toggle
+<Input type="password" suffixIcon={<Icon />} />
+
+// ❌ Passing prefixIcon to type="color" — internally reserved for color swatch
+<Input type="color" prefixIcon={<Icon />} />
+
+// ❌ Using type="text" for numeric data without maskOptions
+<Input type="text" placeholder="Phone number" />
+// ✅ Use maskOptions or type="number"
+<Input type="text" maskOptions={{ mask: '0000 000 000' }} placeholder="Phone" />
+
+// ❌ Using type="number" for formatted strings (phone, credit card)
+<Input type="number" placeholder="Phone" />
+// ✅ Use type="text" + maskOptions for formatted strings
+<Input type="text" maskOptions={{ mask: '0000 000 000' }} />
+
+// ❌ Using onInput for every-keystroke value if change tracking suffices
+// ✅ Prefer onChange for committed values; use onInput only for real-time filtering
+
+// ❌ OTP with non-matching allowedChars and inputMode
+<Input type="otp" inputMode="numeric" allowedChars={/^[A-Za-z]$/} />
+// ✅ Match inputMode with allowedChars
+<Input type="otp" inputMode="text" allowedChars={/^[A-Za-z0-9]$/} />
+```
+---
+
+## Component Conventions
+
+> **CSS encoding**: internal CSS classes use short encoded names (e.g. `in01`, `in02`) per project convention.
+
+> **Unique IDs**: if this component needs to generate HTML `id` attributes, always use `createUniqueId()` from `solid-js` — never `Math.random()` or `Date.now()`.

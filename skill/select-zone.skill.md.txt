@@ -1,0 +1,93 @@
+## COMPONENT IDENTITY
+- **Import**: `import { SelectZone, SelectZoneItem } from 'solid-tom-ui';`
+- **Exports**: `SelectZone` (container), `SelectZoneItem` (item wrapper)
+- **Framework**: SolidJS
+- **Purpose**: Rubber band selection — drag to select multiple items simultaneously, like Notion/File Explorer
+
+## Features
+
+- Selection rectangle appears on drag (≥ 4px), disappears on release
+- Supports all 4 drag directions (decreasing x/y included)
+- Auto-scroll when mouse reaches viewport edge; speed scales with distance
+- Hold Shift/Ctrl to add to existing selection without resetting
+- Single click on empty area → deselect all
+- Elements with `data-no-select` or `input/button/a` do not trigger drag
+
+## API
+
+### `<SelectZone>`
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `onSelect` | `(keys: Set<string>) => void` | — | Callback when selection changes |
+| `additive` | `boolean` | `true` | Support Shift/Ctrl to add to selection |
+| `scrollThreshold` | `number` | `40` | Distance from viewport edge (px) to activate auto-scroll |
+| `scrollSpeed` | `number` | `12` | Max scroll speed (px/frame) |
+| `disabled` | `boolean` | `false` | Disable SelectZone |
+| `class` | `{ root?, overlay? }` | — | Override classes per slot |
+
+### `<SelectZoneItem>`
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `itemKey` | `string` | **Required** — unique key to track the item |
+| `children` | `(selected: () => boolean) => JSX.Element` | Render prop receiving `isSelected` accessor |
+| `class` | `string` | Extra classes on the wrapper div |
+
+## Basic usage
+
+```tsx
+import { SelectZone, SelectZoneItem } from 'solid-tom-ui';
+
+const items = ['a', 'b', 'c', 'd'];
+
+const MyComponent = () => {
+  const [selected, setSelected] = createSignal(new Set<string>());
+
+  return (
+    <SelectZone onSelect={setSelected}>
+      <div class="grid grid-cols-4 gap-2">
+        <For each={items}>
+          {item => (
+            <SelectZoneItem itemKey={item}>
+              {isSelected => (
+                <div class={isSelected() ? 'bg-primary/20' : 'bg-base-100'}>
+                  {item}
+                </div>
+              )}
+            </SelectZoneItem>
+          )}
+        </For>
+      </div>
+    </SelectZone>
+  );
+};
+```
+
+## Excluding elements from drag
+
+Add `data-no-select` to elements that should not trigger drag:
+
+```tsx
+<button data-no-select onClick={clearAll}>Deselect all</button>
+```
+
+## Override overlay style
+
+```tsx
+<SelectZone
+  class={{
+    root: 'p-4 border rounded-xl',
+    overlay: 'bg-blue-500/20 border-blue-500',
+  }}
+>
+  ...
+</SelectZone>
+```
+
+## Technical notes
+
+- Overlay uses `position: fixed` so it works correctly even when the container scrolls
+- AABB intersection detection: O(n) — suitable for up to a few thousand items
+- `startX/Y` is adjusted for scroll amount so the overlay stays accurate during auto-scroll
+- `SelectZoneItem` wrapper div has `data-select-key` to distinguish item clicks from empty-area clicks

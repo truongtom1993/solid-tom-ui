@@ -1,0 +1,406 @@
+## COMPONENT IDENTITY
+- **Import**: `import { Carousel } from 'solid-tom-ui';`
+- **Export**: `Carousel` (named export), `CarouselFunction`, `CarouselProps` (type exports)
+- **Framework**: SolidJS
+- **Purpose**: Image-only carousel component; NOT a `ParentComponent` — images passed via props
+- **CSS custom properties**: `--carousel-transition-duration`, `--carousel-autoplay-speed`
+
+---
+
+## TYPE SIGNATURE
+
+```ts
+// Image item shape (from @/utils/helper)
+type Image = {
+  src: string;
+  alt?: string;
+  class?: string;   // extra class on <img> element
+  // any other standard <img> HTML attributes
+};
+
+// Discriminated union on `direction`
+type CarouselProps = HorizontalCarouselProps | VerticalCarouselProps;
+
+type CarouselBaseProps = {
+  images: Image[];                           // REQUIRED — array of image objects
+  class?: {
+    root?: string;                           // classes on root .sui-carousel div
+    item?: string;                           // classes on each .sui-carousel-item div
+  };
+  arrows?: boolean;                          // default: true
+  autoplay?: boolean | { dotDuration?: boolean }; // default: true
+  autoplaySpeed?: number;                    // ms between slides; default: 3000
+  dots?: boolean;                            // default: true
+  infinite?: boolean;                        // default: true
+  effect?: 'scrollx' | 'fade';              // default: 'scrollx'
+  afterChange?: (current: number) => void;   // fires after slide changes; index is 0-based
+  beforeChange?: (current: number, next: number) => void; // fires before transition
+  onClickSlide?: (index: number) => void;    // fires only when clicking the ACTIVE slide
+  setCarouselFunction?: Setter<CarouselFunction | undefined>; // imperative API hook
+};
+
+type HorizontalCarouselProps = CarouselBaseProps & {
+  direction?: 'horizontal';                  // default when omitted
+  dotPlacement?: 'top' | 'bottom';          // default: 'bottom'
+};
+
+type VerticalCarouselProps = CarouselBaseProps & {
+  direction: 'vertical';                     // must be explicit
+  dotPlacement?: 'start' | 'end';           // default: 'end'
+};
+
+// Imperative API object exposed via setCarouselFunction
+type CarouselFunction = {
+  next: () => void;
+  prev: () => void;
+  moveTo: (index: number) => void;  // 0-based index
+  pause: () => {};
+  play: () => {};
+};
+```
+
+---
+
+## DEFAULT VALUES (via `mergeProps`)
+
+| Prop            | Default      |
+|-----------------|--------------|
+| `arrows`        | `true`       |
+| `autoplay`      | `true`       |
+| `autoplaySpeed` | `3000` (ms)  |
+| `dots`          | `true`       |
+| `infinite`      | `true`       |
+| `effect`        | `'scrollx'`  |
+
+---
+
+## PROP REFERENCE
+
+| Prop                  | Type                                        | Required | Description                                                                                    |
+|-----------------------|---------------------------------------------|----------|------------------------------------------------------------------------------------------------|
+| `images`              | `Image[]`                                   | ✅ YES   | Array of image objects with `src`, optional `alt`, `class`                                     |
+| `direction`           | `'horizontal' \| 'vertical'`               | ❌ NO    | Slide direction. Omit for horizontal (default). Must be `'vertical'` for vertical mode         |
+| `effect`              | `'scrollx' \| 'fade'`                      | ❌ NO    | Transition animation between slides                                                            |
+| `arrows`              | `boolean`                                   | ❌ NO    | Show prev/next arrow buttons                                                                   |
+| `dots`                | `boolean`                                   | ❌ NO    | Show dot indicators. Hidden when `images.length <= 1`                                          |
+| `dotPlacement`        | `'top'\|'bottom'` (h) / `'start'\|'end'` (v) | ❌ NO  | Position of dot indicators — valid values differ by `direction`                                |
+| `autoplay`            | `boolean \| { dotDuration?: boolean }`     | ❌ NO    | `true` = auto-advance; `{ dotDuration: true }` = also show progress bar in active dot         |
+| `autoplaySpeed`       | `number`                                    | ❌ NO    | Milliseconds per slide during autoplay                                                         |
+| `infinite`            | `boolean`                                   | ❌ NO    | Loop from last→first and first→last. When `false`, arrows hide at boundaries                  |
+| `afterChange`         | `(current: number) => void`                | ❌ NO    | Called after slide transition completes; receives new 0-based index                            |
+| `beforeChange`        | `(current: number, next: number) => void`  | ❌ NO    | Called before transition; receives current and next 0-based indexes                            |
+| `onClickSlide`        | `(index: number) => void`                  | ❌ NO    | Fires only when clicking the **currently active** slide (not inactive slides)                  |
+| `setCarouselFunction` | `Setter<CarouselFunction \| undefined>`    | ❌ NO    | SolidJS setter to receive the imperative API object                                            |
+| `class.root`          | `string`                                    | ❌ NO    | Extra classes on root `<div class="sui-carousel">` — use for size, border-radius, etc.        |
+| `class.item`          | `string`                                    | ❌ NO    | Extra classes on each `.sui-carousel-item` slide wrapper div                                   |
+
+---
+
+## DIRECTION × DOT PLACEMENT CONSTRAINT
+
+`dotPlacement` valid values are **constrained by `direction`** — mixing them has no effect (falls through to default):
+
+| `direction`    | Valid `dotPlacement` values | Default      | Visual position        |
+|----------------|-----------------------------|--------------|------------------------|
+| `'horizontal'` (or omitted) | `'top'`, `'bottom'` | `'bottom'` | Above or below slides |
+| `'vertical'`   | `'start'`, `'end'`          | `'end'`      | Left or right of slides |
+
+> ⚠️ Passing `dotPlacement="start"` with `direction="horizontal"` is silently ignored — defaults to `'bottom'`.
+> Passing `dotPlacement="top"` with `direction="vertical"` is silently ignored — defaults to `'end'`.
+
+---
+
+## AUTOPLAY MODES
+
+### `autoplay={true}` — basic autoplay
+- Slides advance every `autoplaySpeed` ms
+- No progress indicator on dots
+
+### `autoplay={false}` — no autoplay
+- Manual navigation only via arrows, dots, or imperative API
+- `play()` via imperative API has no effect
+
+### `autoplay={{ dotDuration: true }}` — autoplay with progress bar
+- Same as `true` but adds animated progress fill inside the active dot
+- Progress bar animates from 0→100% over `autoplaySpeed` ms
+- Progress resets when slide changes (including manual navigation)
+- Progress direction: horizontal for `dots-bottom`/`dots-top`, vertical for `dots-start`/`dots-end`
+
+---
+
+## IMPERATIVE API — `setCarouselFunction`
+
+To control the carousel programmatically, pass a SolidJS signal setter:
+
+```tsx
+import { createSignal } from 'solid-js';
+import { Carousel, CarouselFunction } from 'solid-tom-ui';
+
+const [carouselApi, setCarouselApi] = createSignal<CarouselFunction>();
+
+<Carousel
+  images={images}
+  setCarouselFunction={setCarouselApi}
+  afterChange={current => console.log('Now on slide:', current)}
+/>
+
+// Use the API:
+carouselApi()?.next();
+carouselApi()?.prev();
+carouselApi()?.moveTo(2);   // 0-based index
+carouselApi()?.pause();
+carouselApi()?.play();
+```
+
+### API method details
+| Method        | Description                                                                        |
+|---------------|------------------------------------------------------------------------------------|
+| `next()`      | Go to next slide; wraps to first if `infinite=true`, clamps if `infinite=false`   |
+| `prev()`      | Go to previous slide; wraps to last if `infinite=true`, clamps if `infinite=false`|
+| `moveTo(n)`   | Jump to 0-based index `n` directly; respects `infinite` boundary logic            |
+| `pause()`     | Stops autoplay timer; sets `isPlaying=false`                                      |
+| `play()`      | Resumes autoplay only if `autoplay` prop is truthy; no-op if `autoplay={false}`   |
+
+> ℹ️ The API object is re-created and set via `createEffect` on every render — always call through the signal accessor `carouselApi()?.method()` rather than caching the object.
+
+---
+
+## `onClickSlide` BEHAVIOR
+
+`onClickSlide` fires **only when clicking the currently active/visible slide**:
+
+```tsx
+// Inside component:
+const handleSlideClick = (index: number) => {
+  if (index === currentIndex()) {
+    p.onClickSlide?.(index);   // only fires for the active slide
+  }
+};
+```
+
+Clicking an inactive slide (one that is positioned off-screen) triggers no callback. This is intentional — only the visible slide is interactive.
+
+---
+
+## `infinite` — ARROW VISIBILITY BEHAVIOR
+
+When `infinite={false}`:
+- `showPrevArrow` → `currentIndex() > 0` — hides prev arrow on first slide
+- `showNextArrow` → `currentIndex() < totalSlides() - 1` — hides next arrow on last slide
+
+When `infinite={true}`:
+- Both arrows always shown (when `arrows={true}`)
+
+---
+
+## ANIMATION — INTERNAL MECHANISM
+
+### `effect="scrollx"` (default)
+- Uses pixel-based `translateX` / `translateY` (vertical) CSS transforms
+- 1px overlap on slide positioning to eliminate sub-pixel gaps
+- Detects wrap-around (first↔last) and reverses direction for natural wrap animation
+- Transition duration: hardcoded `400ms` via `--carousel-transition-duration` CSS var
+
+### `effect="fade"`
+- Uses `opacity` CSS transitions between slides
+- All slides stacked absolutely; `z-index` swaps between from/to slides
+- Same 400ms duration
+
+### Animation guard (`isAnimating`)
+- While a transition is running, `goToSlide` calls are ignored (except `skipAnimation=true`)
+- Autoplay skips ticks while animating
+
+---
+
+## INTERNAL DOM STRUCTURE
+
+```
+<div class="sui-carousel [vertical] [dots-bottom|dots-top|dots-start|dots-end] [class.root]"
+     style="--carousel-transition-duration:400ms; --carousel-autoplay-speed:{autoplaySpeed}ms">
+  │
+  ├── <div class="sui-carousel-slides">
+  │     <For each={images}>
+  │       <div class="sui-carousel-item [class.item]" onClick={handleSlideClick}>
+  │         <img src={...} alt={...} class="sui-carousel-image [image.class]" draggable={false} />
+  │       </div>
+  │     </For>
+  │   </div>
+  │
+  ├── <Show when={arrows}>
+  │     <Show when={showPrevArrow()}>
+  │       <button class="sui-carousel-arrow arrow-prev" aria-label="Previous slide">
+  │         <DynamicIcon name="chevron-left" />
+  │       </button>
+  │     </Show>
+  │     <Show when={showNextArrow()}>
+  │       <button class="sui-carousel-arrow arrow-next" aria-label="Next slide">
+  │         <DynamicIcon name="chevron-right" />
+  │       </button>
+  │     </Show>
+  │   </Show>
+  │
+  └── <Show when={dots && totalSlides() > 1}>
+        <div class="sui-carousel-dots">
+          <For each={images}>
+            <button class="sui-carousel-dot [active] [has-progress]"
+                    aria-label="Go to slide {n}">
+              <Show when={hasDotDuration()}>
+                <div class="dot-progress" />
+              </Show>
+            </button>
+          </For>
+        </div>
+      </Show>
+```
+
+---
+
+## SIZING — ALWAYS REQUIRED
+
+The component has `width: 100%` and fills its container's height. **Always set explicit height** on `class.root`:
+
+```tsx
+// ✅ Correct — explicit height
+<Carousel class={{ root: 'h-[400px] rounded-xl' }} images={images} />
+
+// ✅ Fixed width + height
+<Carousel class={{ root: 'h-[150px] w-[200px] rounded-xl' }} images={images} />
+
+// ❌ Wrong — no height = carousel collapses to 0px
+<Carousel images={images} />
+```
+
+---
+
+## BEHAVIOR NOTES FOR AGENTS
+
+1. **`images` items only render `<img>` tags** — the component does not support arbitrary JSX slides. Only image-based slides via the `Image` type are supported.
+
+2. **`direction` changes arrow orientation** — in `'vertical'` mode, arrows move to top/bottom center (rotated 90°) instead of left/right. This is CSS-driven automatically.
+
+3. **`autoplaySpeed` is used for both the timer interval AND the CSS progress animation** — it is set as `--carousel-autoplay-speed` CSS custom property. Changing it reactively will update both simultaneously.
+
+4. **Dots are hidden when `images.length <= 1`** — `<Show when={p.dots && totalSlides() > 1}>` — single-image carousels never show dots regardless of `dots` prop.
+
+5. **`setCarouselFunction` setter is called inside `createEffect`** — the API object is always fresh. Do not cache the returned object; always call via `carouselApi()?.method()`.
+
+6. **`onClickSlide` only fires on the active slide** — clicking a slide that is not `currentIndex()` does nothing, even if partially visible during transition.
+
+7. **Transition is blocked during animation** — `isAnimating()` guard prevents overlapping transitions. Rapid clicking or autoplay ticks during a 400ms transition are silently ignored.
+
+8. **Autoplay resets on manual navigation** — calling `next()`, `prev()`, `moveTo()`, or clicking arrows/dots clears and restarts the autoplay timer, preventing near-simultaneous auto+manual transitions.
+
+9. **`play()` is a no-op when `autoplay={false}`** — the prop check `if (!p.autoplay) return {}` exits immediately. `pause()`/`play()` only work when `autoplay` was originally truthy.
+
+---
+
+## COMMON MISTAKES TO AVOID
+
+| Mistake | Correct approach |
+|---|---|
+| Omitting height on `class.root` | Always set `h-[Npx]` or similar — carousel collapses without explicit height |
+| Using `dotPlacement="start"` with horizontal direction | `start`/`end` are only for `direction="vertical"` — use `top`/`bottom` for horizontal |
+| Using `dotPlacement="top"` with `direction="vertical"` | `top`/`bottom` are only for horizontal — use `start`/`end` for vertical |
+| Calling `carouselApi()?.play()` when `autoplay={false}` | `play()` is a no-op when `autoplay` prop is false |
+| Caching `carouselApi()` object directly | Always call via signal accessor — the API object is recreated each render |
+| Expecting `onClickSlide` for any slide click | Only fires for the currently active/visible slide |
+| Passing JSX as image slides | `images` accepts `Image[]` only — `src`, `alt`, `class` — no arbitrary JSX |
+| Expecting dots with single image | Dots are hidden automatically when `images.length <= 1` |
+
+---
+
+## FULL EXAMPLE — Common configurations
+
+```tsx
+import { Carousel, CarouselFunction } from 'solid-tom-ui';
+import { createSignal } from 'solid-js';
+
+const images = [
+  { src: '/slides/1.webp', alt: 'Slide 1' },
+  { src: '/slides/2.webp', alt: 'Slide 2' },
+  { src: '/slides/3.webp', alt: 'Slide 3' },
+  { src: '/slides/4.webp', alt: 'Slide 4' },
+];
+
+// 1. Basic with autoplay + progress dots
+<Carousel
+  class={{ root: 'h-[400px] rounded-xl' }}
+  images={images}
+  autoplay={{ dotDuration: true }}
+  autoplaySpeed={4000}
+/>
+
+// 2. Fade effect, no autoplay
+<Carousel
+  class={{ root: 'h-[400px] rounded-xl' }}
+  images={images}
+  effect="fade"
+  autoplay={false}
+  dots={true}
+  arrows={true}
+/>
+
+// 3. Vertical direction, dots on end (right)
+<Carousel
+  class={{ root: 'h-[350px] rounded-xl' }}
+  images={images}
+  direction="vertical"
+  autoplay={{ dotDuration: true }}
+  dotPlacement="end"
+/>
+
+// 4. Non-infinite (arrows hide at boundaries)
+<Carousel
+  class={{ root: 'h-[400px] rounded-xl' }}
+  images={images}
+  autoplay={false}
+  infinite={false}
+/>
+
+// 5. Imperative API control
+const [api, setApi] = createSignal<CarouselFunction>();
+const [slide, setSlide] = createSignal(0);
+
+<div class="flex gap-2 mb-2">
+  <button onClick={() => api()?.prev()}>Prev</button>
+  <button onClick={() => api()?.next()}>Next</button>
+  <button onClick={() => api()?.moveTo(0)}>First</button>
+  <button onClick={() => api()?.pause()}>Pause</button>
+  <button onClick={() => api()?.play()}>Play</button>
+</div>
+<p>Slide: {slide() + 1} / {images.length}</p>
+<Carousel
+  class={{ root: 'h-[400px] rounded-xl' }}
+  images={images}
+  autoplay={{ dotDuration: true }}
+  setCarouselFunction={setApi}
+  afterChange={i => setSlide(i)}
+  beforeChange={(cur, next) => console.log(cur, '->', next)}
+  onClickSlide={i => console.log('clicked slide', i)}
+/>
+
+// 6. Dots only, no arrows
+<Carousel
+  class={{ root: 'h-[300px] rounded-xl' }}
+  images={images}
+  arrows={false}
+  dots={true}
+  autoplay={{ dotDuration: true }}
+/>
+
+// 7. Arrows only, no dots
+<Carousel
+  class={{ root: 'h-[300px] rounded-xl' }}
+  images={images}
+  arrows={true}
+  dots={false}
+  autoplay={true}
+/>
+```
+---
+
+## Component Conventions
+
+> **CSS encoding**: internal CSS classes use short encoded names (e.g. `cr01`, `cr02`) per project convention.
+
+> **Unique IDs**: if this component needs to generate HTML `id` attributes, always use `createUniqueId()` from `solid-js` — never `Math.random()` or `Date.now()`.

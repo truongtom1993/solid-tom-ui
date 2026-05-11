@@ -1,0 +1,198 @@
+## COMPONENT IDENTITY
+
+- **Import**: `import { Button } from 'solid-tom-ui';`
+- **Export**: `Button` (default named export)
+- **Framework**: SolidJS
+- **Runtime**: This is a client-side interactive component
+
+## TYPE SIGNATURE
+
+```typescript
+import { Button } from 'solid-tom-ui';
+
+// variant is REQUIRED. All other props are optional.
+<Button
+  variant="default" | "simple" | "solid" | "outline" | "dashed" | "filled" | "text" | "link"
+  color?="neutral" | "primary" | "secondary" | "accent" | "info" | "success" | "warning" | "error"
+  size?="4xs" | "3xs" | "2xs" | "xs" | "sm" | "md" | "lg" | "xl" | "2xl" | "3xl" | "4xl"
+  shape?="circle" | "square"           // MUTEX with children — if set, do NOT pass children
+  icon?={JSXElement}                   // SolidJS component/JSX for icon
+  iconPlacement?="start" | "end"       // default: "start"
+  loading?={boolean}                   // default: false; disables button while true
+  loadingOptions?={{ type?: "spinner"|"dots"|"ring"|"ball"|"bars"|"infinity", size?: number }}
+  animate?="none" | "translate" | "ripple"  // default: "ripple"
+  disabled?={boolean}                  // default: false
+  onClick?={(e: MouseEvent) => void}
+  class?={string}
+>
+  {children}  // NOT allowed when shape is set
+</Button>
+```
+
+## CLASS SLOTS
+
+`Button` is a single-element component — `class` appends to the root `<button>`. No named sub-element slots.
+
+> **CSS encoding**: internal CSS classes use short encoded names (e.g. `bu01`, `bu02`) per project convention.
+
+## DEFAULTS
+
+| Prop                  | Default       |
+| --------------------- | ------------- |
+| `color`               | `"secondary"` |
+| `size`                | `"sm"`        |
+| `iconPlacement`       | `"start"`     |
+| `loading`             | `false`       |
+| `disabled`            | `false`       |
+| `animate`             | `"ripple"`    |
+| `loadingOptions.type` | `"spinner"`   |
+| `loadingOptions.size` | `20`          |
+
+## CONSTRAINT: shape vs children
+
+- `shape="circle"` or `shape="square"` → icon-only button → **children MUST be omitted**
+- No `shape` → text button → children are allowed
+
+## VARIANT SEMANTICS
+
+| Variant   | Visual style                 | Use case                |
+| --------- | ---------------------------- | ----------------------- |
+| `default` | DaisyUI default button style | General neutral action  |
+| `simple`  | Minimal, no background       | Subtle secondary action |
+| `solid`   | Filled solid background      | Primary CTA             |
+| `outline` | Border, transparent bg       | Secondary action        |
+| `dashed`  | Dashed border                | Draft / pending action  |
+| `filled`  | Filled with lighter tone     | Highlighted secondary   |
+| `text`    | No border, no bg, text only  | Inline or low-emphasis  |
+| `link`    | Looks like hyperlink         | Navigation action       |
+
+## COLOR SEMANTICS
+
+| Color       | Semantic meaning          |
+| ----------- | ------------------------- |
+| `neutral`   | Gray / no meaning         |
+| `primary`   | Brand primary             |
+| `secondary` | Brand secondary (default) |
+| `accent`    | Accent highlight          |
+| `info`      | Informational             |
+| `success`   | Positive / confirmed      |
+| `warning`   | Caution                   |
+| `error`     | Destructive / danger      |
+
+## USAGE PATTERNS
+
+### Basic button
+
+```tsx
+<Button variant="solid" color="primary" onClick={handleClick}>
+  Submit
+</Button>
+```
+
+### With icon (text + icon)
+
+```tsx
+import Trash from 'lucide-solid/icons/trash';
+
+<Button variant="outline" color="error" icon={<Trash size={16} />} onClick={handleDelete}>
+  Delete
+</Button>
+
+// Icon at end
+<Button variant="solid" color="primary" icon={<DynamicIcon name="arrow-right" size={16} />} iconPlacement="end">
+  Continue
+</Button>
+```
+
+### Icon-only button (circle/square shape)
+
+```tsx
+// CORRECT: shape set → no children
+<Button variant="solid" color="primary" shape="circle" size="md" icon={<DynamicIcon name="plus" size={16} />} />
+<Button variant="outline" color="neutral" shape="square" size="sm" icon={<Trash size={14} />} />
+
+// WRONG: shape + children → TypeScript error
+<Button variant="solid" shape="circle" icon={...}>Label</Button>  // ❌ children not allowed with shape
+```
+
+### Loading state
+
+```tsx
+<Button variant="solid" color="primary" loading={isLoading()}>
+  Save
+</Button>
+
+// Custom loading indicator
+<Button variant="solid" color="primary" loading={isLoading()} loadingOptions={{ type: 'dots', size: 16 }}>
+  Processing
+</Button>
+```
+
+### Disabled
+
+```tsx
+<Button variant="solid" color="primary" disabled={!isValid()}>
+  Submit
+</Button>
+// Note: loading=true also disables the button automatically
+```
+
+### Animation control
+
+```tsx
+<Button variant="solid" color="primary" animate="none">No animation</Button>
+<Button variant="solid" color="primary" animate="translate">Translate on hover</Button>
+<Button variant="solid" color="primary" animate="ripple">Ripple on click (default)</Button>
+```
+
+### Size progression (smallest → largest)
+
+```
+4xs → 3xs → 2xs → xs → sm(default) → md → lg → xl → 2xl → 3xl → 4xl
+```
+
+## DECISION RULES
+
+**Choosing variant:**
+
+- User performs the main action → `solid` with `primary`
+- Secondary/cancel action next to primary → `outline` with `neutral` or `secondary`
+- Destructive action (delete, remove) → `solid` or `outline` with `error`
+- Navigation/link-like → `link` or `text`
+- Icon-only toolbar button → `simple` or `text` with appropriate `shape`
+
+**Choosing color:**
+
+- Confirm / save / create → `primary` or `success`
+- Cancel / back → `neutral`
+- Delete / remove → `error`
+- Warning / irreversible → `warning`
+- Info action → `info`
+
+**Choosing size:**
+
+- Default UI → `sm` (default)
+- Inside tight spaces (table cells, sidebars) → `xs` or `2xs`
+- Hero CTA → `lg` or `xl`
+
+## ANTI-PATTERNS
+
+```tsx
+// ❌ Missing required `variant` prop
+<Button color="primary">Click</Button>
+
+// ❌ Using shape with children
+<Button variant="solid" shape="circle" icon={<Icon />}>Text</Button>
+
+// ❌ Redundant: loading already disables, no need for disabled too
+<Button loading={true} disabled={true}>Save</Button>
+
+// ✅ Correct: just use loading
+<Button loading={true}>Save</Button>
+```
+
+## ADDITIONAL NATIVE PROPS
+
+The `Button` component forwards all standard `HTMLButtonElement` attributes except `onClick`, `class`, `disabled`, and `children` (which are controlled by the component). You can pass `type="submit"`, `form`, `aria-*`, `data-*`, etc.
+
+> **Unique IDs**: if this component needs to generate HTML `id` attributes, always use `createUniqueId()` from `solid-js` — never `Math.random()` or `Date.now()`.

@@ -1,0 +1,139 @@
+## COMPONENT IDENTITY
+- **Import**: `import { Swap } from 'solid-tom-ui';`
+- **Export**: `Swap` (named export)
+- **Framework**: SolidJS
+- **Purpose**: Toggle component that alternates between two visual states (`item1` / `item2`) via a hidden checkbox; supports `rotate` and `flip` animation effects
+
+## TYPE SIGNATURE
+
+```typescript
+import { Swap, SolidComponent } from 'solid-tom-ui';
+
+<Swap
+  item1={SolidComponent}              // REQUIRED: shown when checkbox is CHECKED (swap-on)
+  item2={SolidComponent}              // REQUIRED: shown when checkbox is UNCHECKED (swap-off)
+  effect?="rotate" | "flip"           // animation effect; default: "rotate"
+  onChange?={(value: boolean) => void} // called when checkbox changes; value = checked state
+/>
+```
+
+### `SolidComponent` type
+```typescript
+type SolidComponent = Component<any> | (() => JSX.Element) | JSX.Element;
+```
+
+## STATE MODEL
+| Checkbox state | Visible item | CSS class on label |
+|---|---|---|
+| `checked = true` | `item1` | `swap-on` is active |
+| `checked = false` | `item2` | `swap-off` is active |
+
+- `item1` = the "ON" state content (e.g., close icon, "X")
+- `item2` = the "OFF" state content (e.g., hamburger menu, sun icon)
+- The component is **uncontrolled** — no external `checked` prop; checkbox state is managed by DaisyUI's CSS.
+
+## USAGE PATTERNS
+
+### Icon toggle with rotate effect (hamburger ↔ close)
+```tsx
+import { Swap, DynamicIcon } from 'solid-tom-ui';
+
+<Swap
+  item1={<DynamicIcon name="circle-x" size={40} />}
+  item2={<DynamicIcon name="menu" size={40} />}
+  effect="rotate"
+  onChange={value => console.log('isOpen:', value)}
+/>
+```
+
+### Flip effect (arrow up ↔ arrow down)
+```tsx
+<Swap
+  item1={<DynamicIcon name="arrow-up-to-line" size={40} stroke="black" />}
+  item2={<DynamicIcon name="arrow-down-to-line" size={40} stroke="black" />}
+  effect="flip"
+/>
+```
+
+### With Button content (any SolidJS component works)
+```tsx
+import { Button } from 'solid-tom-ui';
+
+<Swap
+  item1={<Button variant="solid" color="error">Cancel</Button>}
+  item2={<Button variant="solid" color="primary">Open</Button>}
+  onChange={value => setIsOpen(value)}
+/>
+```
+
+### Light/Dark theme toggle pattern
+```tsx
+<Swap
+  item1={<DynamicIcon name="moon" size={24} />}   // checked = dark mode
+  item2={<DynamicIcon name="sun" size={24} />}    // unchecked = light mode
+  effect="rotate"
+  onChange={isDark => applyTheme(isDark ? 'dark' : 'light')}
+/>
+```
+
+### Play/Pause media toggle
+```tsx
+<Swap
+  item1={<DynamicIcon name="pause" size={32} />}  // checked = playing
+  item2={<DynamicIcon name="play" size={32} />}   // unchecked = paused
+  effect="flip"
+  onChange={isPlaying => togglePlayback(isPlaying)}
+/>
+```
+
+## EFFECT REFERENCE
+| `effect` value | DaisyUI class | Animation |
+|---|---|---|
+| `"rotate"` | `swap-rotate` | Items rotate 45° during transition |
+| `"flip"` | `swap-flip` | Items flip on Y axis during transition |
+| *(omitted)* | `swap-rotate` | Defaults to rotate |
+
+## CONSTRAINTS
+- Both `item1` and `item2` are **REQUIRED**.
+- `item1` and `item2` are rendered via `<Dynamic component={...} />`, so they must be **component references** or **inline JSX** compatible with `SolidComponent`.
+- The component is **uncontrolled** — initial state is always `item2` (unchecked). There is no `defaultChecked` or `checked` prop.
+- The toggle is driven by a native `<input type="checkbox">` inside a `<label>`. Clicking anywhere on the rendered content toggles the state.
+- `onChange` receives `true` when switching to `item1` (checked), `false` when switching back to `item2`.
+
+## ANTI-PATTERNS
+```tsx
+// ❌ Forgetting that item1 is "ON" (checked) and item2 is "OFF" (unchecked)
+// If you want the hamburger visible first (default/off state), put it in item2
+<Swap
+  item1={<MenuIcon />}   // ❌ this shows when CHECKED (after click)
+  item2={<CloseIcon />}  // ❌ this shows by default (initial unchecked state)
+/>
+// ✅ Correct: item2 = default (off) state, item1 = toggled (on) state
+<Swap
+  item1={<CloseIcon />}  // shown after click
+  item2={<MenuIcon />}   // shown initially
+/>
+
+// ❌ Trying to control checked state externally (no prop for this)
+<Swap item1={A} item2={B} checked={isOpen()} />  // ❌ prop doesn't exist
+
+// ❌ Passing string/plain text directly (needs to be a component or JSX)
+<Swap item1="ON" item2="OFF" />  // may not render correctly with Dynamic
+// ✅ Wrap in a component
+<Swap item1={() => <span>ON</span>} item2={() => <span>OFF</span>} />
+```
+
+## DECISION RULES
+- Use `Swap` for **binary toggle icons** where animation is desired (theme toggle, menu open/close, play/pause).
+- Use `effect="rotate"` for rotating icons (typical hamburger → X transition).
+- Use `effect="flip"` for content that "flips" perspective (up/down arrows, front/back cards).
+- For text-only toggles or toggles requiring controlled state, use `Switch` instead.
+- `onChange` is optional; omit if you only need visual toggle without side effects.
+
+## CLASS SLOTS
+
+`Swap` is a single-element component — no `class` prop currently exposed. Style it by wrapping in a container or passing styled components as `item1`/`item2`.
+
+> **CSS encoding**: internal CSS classes use short encoded names (e.g. `sw01`, `sw02`) per project convention.
+
+> **Unique IDs**: if this component needs to generate HTML `id` attributes, always use `createUniqueId()` from `solid-js` — never `Math.random()` or `Date.now()`.

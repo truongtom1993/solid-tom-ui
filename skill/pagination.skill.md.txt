@@ -1,0 +1,405 @@
+## COMPONENT IDENTITY
+- **Import**: `import { Pagination } from 'solid-tom-ui';`
+- **Export**: `Pagination` (named export)
+- **Framework**: SolidJS
+- **Purpose**: Pagination control with three modes (default, simple, fully); supports controlled and uncontrolled page state
+
+## PROP REFERENCE
+
+### Shared base props (all modes)
+
+| Prop | Type | Default | Description |
+|---|---|---|---|
+| `mode` | `'default' \| 'simple' \| 'fully'` | `'default'` | Rendering mode. Omit for default full-featured pagination. |
+| `color` | `BaseColorProps` | — | Theme color applied to active/interactive elements. |
+| `current` | `number` | — | Controlled current page (1-indexed). If omitted → uncontrolled. |
+| `defaultCurrent` | `number` | `1` | Initial page for uncontrolled mode. |
+| `pageSize` | `number` | — | Controlled page size. |
+| `defaultPageSize` | `number` | `10` | Initial page size for uncontrolled mode. |
+| `total` | `number` | `0` | Total number of data items. Used to compute `totalPages`. |
+| `size` | `'xs' \| 'sm' \| 'md' \| 'lg' \| 'xl'` | `'md'` | Visual size variant. |
+| `hideOnSinglePage` | `boolean` | `false` | Render nothing when `totalPages <= 1`. |
+| `disabled` | `boolean` | `false` | Disable all interactions; adds `opacity-50 pointer-events-none`. |
+| `class` | `PaginationClass` | — | Fine-grained class overrides for each sub-element (see **`PaginationClass`** section). |
+| `onChange` | `(page: number, pageSize: number) => void` | — | Fires on page **or** pageSize change. |
+
+### Default mode props (`mode="default"` or omitted)
+
+| Prop | Type | Default | Description |
+|---|---|---|---|
+| `align` | `'start' \| 'center' \| 'end'` | `'start'` | Horizontal alignment via `justify-*` flex. |
+| `showLessItems` | `boolean` | `false` | Reduce sibling count in ellipsis algorithm (1 instead of 2). Ellipsis jumps ±3 instead of ±5. |
+| `showQuickJumper` | `boolean \| { goButton: JSX.Element }` | `false` | Show "Go to" input. Pass `{ goButton }` to add a clickable button alongside the input. |
+| `showSizeChanger` | `boolean \| Record<string, unknown>` | auto | Show page-size `<select>`. Auto-shown when `total > totalBoundaryShowSizeChanger`. |
+| `pageSizeOptions` | `number[]` | `[10, 20, 50, 100]` | Options rendered inside the size-changer `<select>`. |
+| `totalBoundaryShowSizeChanger` | `number` | `50` | Threshold: auto-enable `showSizeChanger` when `total` exceeds this. |
+| `itemRender` | `(page, type, originalElement) => JSX.Element` | — | Override rendering of prev/next/page buttons. `type` is `'prev' \| 'next' \| 'page'`. |
+| `showTitle` | `boolean` | `true` | Add `title` attribute to page buttons. |
+| `showTotal` | `(total, range) => JSX.Element` | — | Render a label before the prev button. `range` is `[start, end]` (1-indexed, inclusive). |
+| `onShowSizeChange` | `(current: number, size: number) => void` | — | Fires only when pageSize changes via the size-changer select. |
+
+### Simple mode props (`mode="simple"`)
+
+| Prop | Type | Default | Description |
+|---|---|---|---|
+| `align` | `'start' \| 'center' \| 'end'` | `'start'` | Horizontal alignment via `justify-*` flex. |
+
+### Fully mode props (`mode="fully"`)
+
+| Prop | Type | Default | Description |
+|---|---|---|---|
+| `pageSizeOptions` | `number[]` | `[10, 20, 50, 100]` | Options rendered inside the size-changer `<select>`. |
+| `onShowSizeChange` | `(current: number, size: number) => void` | — | Fires when pageSize changes via the size-changer select. |
+
+---
+
+## `PaginationClass` INTERFACE
+
+Fine-grained class overrides passed via the `class` prop. All fields are optional strings merged with `cn()`.
+
+```ts
+interface PaginationClass {
+  // ── Root wrapper ────────────────────────────────────────────────
+  root?: string;
+
+  // ── Shared controls (default + simple + fully) ───────────────────
+  /** Prev / next / page number buttons */
+  btn?: string;
+  /** Extra class on a button when it is disabled */
+  btnDisabled?: string;
+  /** Active (current) page button */
+  itemActive?: string;
+  /** Ellipsis jump button */
+  ellipsis?: string;
+  /** Prev button specifically */
+  prev?: string;
+  /** Next button specifically */
+  next?: string;
+  /** Page-size <select> (default mode) or native <select> (fully mode) */
+  sizeChanger?: string;
+
+  // ── Default mode ─────────────────────────────────────────────────
+  /** "Total X items" text */
+  total?: string;
+  /** Quick-jumper wrapper <span> */
+  jumper?: string;
+  /** "Go to" label inside the quick-jumper */
+  jumperLabel?: string;
+  /** Number <input> inside the quick-jumper */
+  jumperInput?: string;
+
+  // ── Simple mode ───────────────────────────────────────────────────
+  /** Pager wrapper <span> (contains input + slash + total) */
+  simplePager?: string;
+  /** Direct page-number <input> */
+  simpleInput?: string;
+  /** "/" separator */
+  slash?: string;
+
+  // ── Fully mode ────────────────────────────────────────────────────
+  /** Left section wrapper (size-changer + range) */
+  fullyLeft?: string;
+  /** Right section wrapper (page-input + prev/next) */
+  fullyRight?: string;
+  /** "Items per page:" label */
+  fullyLabel?: string;
+  /** "X–Y of Z items" range text */
+  fullyRange?: string;
+  /** "of N pages" label next to page input */
+  fullyPages?: string;
+  /** Page-number <input> (underline style) */
+  fullyPageInput?: string;
+}
+```
+
+---
+
+## BEHAVIORAL RULES (inferred from implementation)
+
+### Controlled vs Uncontrolled
+
+- **Uncontrolled**: omit `current` and `pageSize`. Internal signals (`internalCurrent`, `internalPageSize`) manage state.
+- **Controlled**: supply `current` (and/or `pageSize`). The component reads them via `createMemo(() => props.current ?? internalCurrent())`. **You must update the signal yourself in `onChange`**; the component does not force-sync controlled values into internal state on re-render.
+
+### Page Clamping
+
+- `changePage(n)` clamps `n` to `[1, totalPages]`. Navigating to the same page is a no-op (no `onChange` fired).
+
+### `totalPages` Computation
+
+```
+totalPages = Math.max(1, Math.ceil(total / pageSize))
+```
+
+### Ellipsis Algorithm
+
+```
+sibling = showLessItems ? 1 : 2
+showAll if totalPages <= (showLessItems ? 7 : 9)
+otherwise:
+  [1] [prev-ellipsis?] [cur-sibling .. cur+sibling] [next-ellipsis?] [totalPages]
+ellipsis click jumps: showLessItems ? ±3 pages : ±5 pages
+```
+
+### Size Changer Auto-Show
+
+```
+showSizeChanger === true  → always show
+showSizeChanger === object → always show
+showSizeChanger undefined → show when total > totalBoundaryShowSizeChanger (default 50)
+```
+
+### Quick Jumper
+
+- Pressing `Enter` in the input or clicking `goButton` triggers `changePage(parseInt(value))`.
+- Input is cleared after a successful jump.
+- `showQuickJumper={true}` → input only (Enter to jump).
+- `showQuickJumper={{ goButton: <button>Go</button> }}` → input + clickable element.
+
+### Modes
+
+**`default`** (omit `mode` or `mode="default"`): Full-featured — page buttons, ellipsis, optional quick jumper & size changer. Supports `align`.
+
+**`simple`** (`mode="simple"`):
+- Renders: `[‹] [input / totalPages] [›]`
+- Input: jumps on `Enter` or `blur`.
+- `showSizeChanger`, `showQuickJumper`, `showTotal`, `itemRender` are **ignored**.
+- Supports `align`.
+
+**`fully`** (`mode="fully"`):
+- Full-width layout. Always stretches to 100% width — `align` is **not applicable**.
+- Left section: size-changer `<select>` + "X–Y of Z items" range text.
+- Right section: page-number `<input>` + "of N pages" label + prev/next buttons.
+- Built-in size changer (no need for `showSizeChanger`).
+- `showLessItems`, `showQuickJumper`, `showTotal`, `itemRender`, `align` are **ignored**.
+
+---
+
+## USAGE PATTERNS
+
+### 1. Minimal uncontrolled
+
+```tsx
+<Pagination total={50} />
+```
+
+### 2. Controlled with state
+
+```tsx
+const [page, setPage] = createSignal(1);
+
+<Pagination
+  total={200}
+  current={page()}
+  onChange={(p, _size) => setPage(p)}
+/>
+```
+
+### 3. Show total items count
+
+```tsx
+<Pagination
+  total={85}
+  showTotal={(total, [start, end]) => (
+    <span>{start}–{end} of {total}</span>
+  )}
+/>
+```
+
+### 4. Page size changer + quick jumper (full-featured)
+
+```tsx
+<Pagination
+  total={500}
+  current={page()}
+  onChange={(p, _size) => setPage(p)}
+  showSizeChanger
+  pageSizeOptions={[10, 25, 50]}
+  showQuickJumper
+/>
+```
+
+### 5. Custom Go button for quick jumper
+
+```tsx
+<Pagination
+  total={300}
+  showQuickJumper={{ goButton: <button class="btn btn-sm btn-primary">Go</button> }}
+/>
+```
+
+### 6. Custom prev/next labels via itemRender
+
+```tsx
+<Pagination
+  total={100}
+  itemRender={(page, type, original) => {
+    if (type === 'prev') return <button class="sui-pagination-btn px-2">← Prev</button>;
+    if (type === 'next') return <button class="sui-pagination-btn px-2">Next →</button>;
+    return original; // keep default page number buttons
+  }}
+/>
+```
+
+### 7. Simple mode
+
+```tsx
+<Pagination total={200} mode="simple" />
+```
+
+### 8. Hide when only one page
+
+```tsx
+<Pagination total={5} defaultPageSize={10} hideOnSinglePage />
+// renders nothing — totalPages = 1
+```
+
+### 9. Alignment
+
+```tsx
+<Pagination total={100} align="center" />
+<Pagination total={100} align="end" />
+```
+
+### 10. Size variants
+
+```tsx
+<Pagination total={100} size="xs" />
+<Pagination total={100} size="sm" />
+<Pagination total={100} size="md" /> {/* default */}
+<Pagination total={100} size="lg" />
+<Pagination total={100} size="xl" />
+```
+
+### 11. Disabled state
+
+```tsx
+<Pagination total={200} defaultCurrent={3} showSizeChanger showQuickJumper disabled />
+```
+
+### 12. onShowSizeChange callback
+
+```tsx
+<Pagination
+  total={200}
+  showSizeChanger
+  onShowSizeChange={(current, size) => console.log({ current, size })}
+/>
+```
+
+### 13. Fully mode (full-width layout)
+
+```tsx
+<Pagination
+  total={500}
+  mode="fully"
+  pageSizeOptions={[10, 25, 50]}
+  onShowSizeChange={(current, size) => console.log({ current, size })}
+/>
+```
+
+### 14. Custom color
+
+```tsx
+<Pagination total={100} color="primary" />
+<Pagination total={100} color="success" />
+```
+
+### 15. Fine-grained class overrides
+
+```tsx
+<Pagination
+  total={200}
+  class={{
+    root: 'my-pagination',
+    btn: 'rounded-full',
+    itemActive: 'font-bold',
+    jumperInput: 'w-12',
+  }}
+/>
+```
+
+---
+
+## CSS CLASSES (public API for customization)
+
+| Class | Applied to |
+|---|---|
+| `sui-pagination` | Root `<div>` |
+| `sui-pagination-disabled` | Root when `disabled=true` |
+| `sui-pagination-xs/sm/md/lg/xl` | Size modifier on root |
+| `sui-pagination-btn` | All button elements (prev, next, page, ellipsis) |
+| `sui-pagination-btn-disabled` | Prev/next when at boundary |
+| `sui-pagination-prev` | Prev button |
+| `sui-pagination-next` | Next button |
+| `sui-pagination-item` | Page number button |
+| `sui-pagination-item-active` | Active (current) page button |
+| `sui-pagination-ellipsis` | Ellipsis `•••` button |
+| `sui-pagination-size-changer` | `<select>` for page size (default + fully) |
+| **Default mode** | |
+| `sui-pagination-total` | showTotal wrapper `<span>` |
+| `sui-pagination-jumper` | Quick jumper wrapper `<span>` |
+| `sui-pagination-jumper-label` | "Go to" text |
+| `sui-pagination-jumper-input` | Quick jumper `<input>` |
+| **Simple mode** | |
+| `sui-pagination-simple` | Root when `mode="simple"` |
+| `sui-pagination-simple-pager` | Input + slash + total wrapper |
+| `sui-pagination-simple-input` | Simple mode `<input>` |
+| **Fully mode** | |
+| `sui-pagination-fully` | Root when `mode="fully"` |
+| `sui-pagination-fully-left` | Left section wrapper |
+| `sui-pagination-fully-right` | Right section wrapper |
+| `sui-pagination-fully-label` | "Items per page:" label |
+| `sui-pagination-fully-range` | "X–Y of Z items" range text |
+| `sui-pagination-fully-pages` | "of N pages" label |
+| `sui-pagination-fully-page-input` | Page-number `<input>` (underline style) |
+
+To add custom class to any element: use the `class` prop (type `PaginationClass`), e.g. `class={{ root: 'my-class', btn: 'rounded-full' }}`.
+
+---
+
+## ANIMATION
+
+- Page button enter: slide-in from right (`translateX(100% → 0)`, `opacity 0→1`, 300ms ease-out).
+- Page button exit: scale-out from left origin (`scale(1→0)`, 300ms ease-in).
+- Implemented via `solid-transition-group` `<TransitionGroup>` using the Web Animations API.
+- Animation only applies to the page-number buttons list, **not** prev/next/ellipsis.
+
+---
+
+## CONSTRAINTS & EDGE CASES
+
+- `total=0` → `totalPages=1`; component renders with only page 1.
+- `current` prop does NOT force-update `internalCurrent` reactively — always update via `onChange`.
+- `mode="simple"` ignores `showSizeChanger`, `showQuickJumper`, `showTotal`, `itemRender`.
+- `mode="fully"` ignores `showLessItems`, `showQuickJumper`, `showTotal`, `itemRender`, `align`.
+- `hideOnSinglePage=true` + `total <= pageSize` → component returns `null` (nothing rendered).
+- `pageSizeOptions` must be `number[]`; strings will fail `Number()` coercion in the select handler.
+- `itemRender` receives `page - 1` for `type='prev'` and `page + 1` for `type='next'` (i.e., the target page number, not current).
+- Ellipsis buttons are `<button>` elements (not `<span>`), so they receive keyboard focus naturally.
+- `mode="fully"` always stretches full width — do not use `align` with it.
+
+---
+
+## DO / DON'T
+
+**DO**
+- Always provide `total` — without it the component renders a single page.
+- Use `current` + `onChange` together for controlled usage.
+- Use `class={{ root: 'custom', btn: '...' }}` (`PaginationClass` shape) for fine-grained style overrides.
+- Import from the barrel: `import { Pagination } from 'solid-tom-ui'`.
+- Use `mode="fully"` when you need a full-width table pagination bar with built-in size changer and range display.
+
+**DON'T**
+- Don't pass `current` without an `onChange` handler (read-only pagination — use `mode="simple"` instead).
+- Don't mix `mode="simple"` with `showSizeChanger`/`showQuickJumper` — those props are silently ignored.
+- Don't use `align` with `mode="fully"` — the layout always stretches to full width.
+- Don't use `hideOnSinglePage` when you need pagination to always be visible (e.g., for layout consistency).
+- Don't import `PaginationExample` in production — it's a demo component only.
+---
+
+## Component Conventions
+
+> **CSS encoding**: internal CSS classes use short encoded names (e.g. `pg01`, `pg02`) per project convention.
+
+> **Unique IDs**: if this component needs to generate HTML `id` attributes, always use `createUniqueId()` from `solid-js` — never `Math.random()` or `Date.now()`.

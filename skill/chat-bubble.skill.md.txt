@@ -1,0 +1,342 @@
+## COMPONENT IDENTITY
+- **Import**: `import { ChatBubble } from 'solid-tom-ui';`
+- **Export**: `ChatBubble` (named export)
+- **Framework**: SolidJS
+- **Purpose**: Chat message bubble — NOT a `ParentComponent`; all content passed via props
+
+---
+
+## TYPE SIGNATURE
+
+```ts
+type ChatBubbleProps = {
+  bubble: SolidComponent;       // REQUIRED — main message content
+  align?: 'start' | 'end';      // message side; no default applied in component
+  color?: BaseColorProps;        // bubble background color
+  avatar?: SolidComponent;      // avatar displayed beside the bubble
+  header?: SolidComponent;      // content above the bubble (name, timestamp, etc.)
+  footer?: SolidComponent;      // intended for status below bubble — see BUG note
+  class?: {
+    avatar?: string;            // extra classes on .chat-image wrapper
+    bubble?: string;            // extra classes on .chat-bubble wrapper
+    header?: string;            // extra classes on .chat-header wrapper
+    footer?: string;            // extra classes on .chat-footer wrapper
+  };
+};
+
+// BaseColorProps:
+type BaseColorProps =
+  | 'default' | 'neutral' | 'primary' | 'secondary' | 'accent'
+  | 'info' | 'success' | 'warning' | 'error';
+```
+
+---
+
+## PROP REFERENCE
+
+| Prop           | Type             | Required | Description                                                                                   |
+|----------------|------------------|----------|-----------------------------------------------------------------------------------------------|
+| `bubble`       | `SolidComponent` | ✅ YES   | Main message body — rendered inside `.chat-bubble` div                                        |
+| `align`        | `'start' \| 'end'` | ❌ NO  | `'start'` = left side (received); `'end'` = right side (sent). No default — omitting applies no alignment class |
+| `color`        | `BaseColorProps` | ❌ NO    | Background color of the bubble                                                                |
+| `avatar`       | `SolidComponent` | ❌ NO    | Rendered inside `.chat-image` — only shown when truthy (via `<Show>`)                        |
+| `header`       | `SolidComponent` | ❌ NO    | Rendered inside `.chat-header` above the bubble — only shown when truthy                     |
+| `footer`       | `SolidComponent` | ❌ NO    | **⚠️ BUG**: renders `bubble` content instead of `footer` — see bug section below             |
+| `class.avatar` | `string`         | ❌ NO    | Extra classes on `.chat-image` wrapper div                                                    |
+| `class.bubble` | `string`         | ❌ NO    | Extra classes on `.chat-bubble` wrapper div                                                   |
+| `class.header` | `string`         | ❌ NO    | Extra classes on `.chat-header` wrapper div                                                   |
+| `class.footer` | `string`         | ❌ NO    | Extra classes on `.chat-footer` wrapper div                                                   |
+
+---
+
+## ⚠️ KNOWN BUG — `footer` renders `bubble` content
+
+In the current source (`chatBubble.tsx` line 43), the `.chat-footer` div renders `props.bubble` instead of `props.footer`:
+
+```tsx
+// Source code (line 43) — BUG:
+<div class={cn('chat-footer', props.class?.footer)}>{props.bubble as Element}</div>
+//                                                            ^^^^^^ should be props.footer
+```
+
+**Impact for agents:**
+- The `footer` prop controls **visibility only** (via `<Show when={props.footer}>`) — if `footer` is truthy, the `.chat-footer` div renders with `bubble` content inside
+- The actual `footer` JSX value is **never rendered**
+- Do NOT rely on `footer` prop to display delivery status, timestamps, or any footer-specific content — it will show the bubble text instead
+- Until fixed, avoid using `footer` for any meaningful content
+
+---
+
+## COLOR REFERENCE
+
+| Value         | DaisyUI class             |
+|---------------|---------------------------|
+| `'default'`   | *(no class)*              |
+| `'neutral'`   | `chat-bubble-neutral`     |
+| `'primary'`   | `chat-bubble-primary`     |
+| `'secondary'` | `chat-bubble-secondary`   |
+| `'accent'`    | `chat-bubble-accent`      |
+| `'info'`      | `chat-bubble-info`        |
+| `'success'`   | `chat-bubble-success`     |
+| `'warning'`   | `chat-bubble-warning`     |
+| `'error'`     | `chat-bubble-error`       |
+
+---
+
+## INTERNAL DOM STRUCTURE
+
+```
+<div class="chat chat-start|chat-end">
+  │
+  ├── <Show when={avatar}>
+  │     <div class="chat-image [class.avatar]">
+  │       {avatar}
+  │     </div>
+  │   </Show>
+  │
+  ├── <Show when={header}>
+  │     <div class="chat-header [class.header]">
+  │       {header}
+  │     </div>
+  │   </Show>
+  │
+  ├── <Show when={bubble}>
+  │     <div class="chat-bubble chat-bubble-{color} [class.bubble]">
+  │       {bubble}
+  │     </div>
+  │   </Show>
+  │
+  └── <Show when={footer}>
+        <div class="chat-footer [class.footer]">
+          {bubble}    ← ⚠️ BUG: renders bubble, not footer
+        </div>
+      </Show>
+```
+
+All four sections (`avatar`, `header`, `bubble`, `footer`) are independently conditional via `<Show>`.
+
+---
+
+## ALIGN BEHAVIOR
+
+| `align`     | DaisyUI class  | Visual placement       | Typical use              |
+|-------------|----------------|------------------------|--------------------------|
+| `'start'`   | `chat-start`   | Left side of container | Received / incoming msg  |
+| `'end'`     | `chat-end`     | Right side of container | Sent / outgoing msg     |
+| *(omitted)* | *(none)*       | Browser default        | Avoid — renders unstyled |
+
+Always pass `align` explicitly. Omitting it leaves the chat div without a positioning class.
+
+---
+
+## AVATAR INTEGRATION
+
+`avatar` accepts any `SolidComponent`. Typically used with the `Avatar` component from `@/components/avatar/avatar`:
+
+```tsx
+import { Avatar } from 'solid-tom-ui';
+
+// Image avatar
+<ChatBubble
+  align="start"
+  avatar={<Avatar image="/profile.webp" width={40} />}
+  bubble={<span>Hello!</span>}
+/>
+
+// Placeholder avatar (initials)
+<ChatBubble
+  align="end"
+  avatar={
+    <Avatar
+      width={36}
+      placeholder={
+        <div class="bg-primary text-primary-content flex h-9 w-9 items-center justify-center rounded-full">
+          <span class="text-sm font-bold">JD</span>
+        </div>
+      }
+    />
+  }
+  bubble={<span>Message from JD</span>}
+/>
+```
+
+---
+
+## USAGE PATTERNS
+
+### Pattern 1 — Minimal (bubble only)
+```tsx
+<ChatBubble
+  align="start"
+  color="neutral"
+  bubble={<span>Hi there!</span>}
+/>
+```
+
+### Pattern 2 — With avatar
+```tsx
+<ChatBubble
+  align="start"
+  color="neutral"
+  avatar={<Avatar image="/user.webp" width={40} />}
+  bubble={<span>Hello! How can I help?</span>}
+/>
+```
+
+### Pattern 3 — With header (name + timestamp)
+```tsx
+<ChatBubble
+  align="start"
+  color="info"
+  avatar={<Avatar image="/user.webp" width={40} />}
+  header={
+    <div class="flex items-center gap-2">
+      <span class="font-bold">Alice</span>
+      <time class="text-xs opacity-50">12:45</time>
+    </div>
+  }
+  bubble={<span>Did you see the latest update?</span>}
+/>
+```
+
+### Pattern 4 — Rich bubble content (multiline)
+```tsx
+<ChatBubble
+  align="end"
+  color="primary"
+  bubble={
+    <div>
+      <p>Good morning!</p>
+      <p class="mt-1">Sure, I'll take a look right now.</p>
+    </div>
+  }
+/>
+```
+
+### Pattern 5 — Full conversation layout
+```tsx
+<div class="bg-base-200 max-w-xl space-y-2 rounded-lg p-4">
+  <ChatBubble
+    align="start"
+    color="neutral"
+    avatar={<Avatar image="/customer.webp" width={36} />}
+    header={<span class="text-sm font-bold">Customer</span>}
+    bubble={<span>Hi, I have a question about my order.</span>}
+  />
+  <ChatBubble
+    align="end"
+    color="info"
+    avatar={
+      <Avatar
+        width={36}
+        placeholder={
+          <div class="bg-info text-info-content flex h-9 w-9 items-center justify-center rounded-full">
+            <span class="text-sm">CS</span>
+          </div>
+        }
+      />
+    }
+    header={<span class="text-sm font-bold">Support</span>}
+    bubble={<span>Hello! What's your order number?</span>}
+  />
+</div>
+```
+
+### Pattern 6 — Rendering a list of messages from data
+```tsx
+type Message = {
+  id: string;
+  text: string;
+  sender: 'me' | 'other';
+  senderName: string;
+  time: string;
+};
+
+<For each={messages()}>
+  {msg => (
+    <ChatBubble
+      align={msg.sender === 'me' ? 'end' : 'start'}
+      color={msg.sender === 'me' ? 'primary' : 'neutral'}
+      header={
+        <div class="flex items-center gap-2">
+          <span class="font-bold">{msg.senderName}</span>
+          <time class="text-xs opacity-50">{msg.time}</time>
+        </div>
+      }
+      bubble={<span>{msg.text}</span>}
+    />
+  )}
+</For>
+```
+
+---
+
+## BEHAVIOR NOTES FOR AGENTS
+
+1. **`bubble` is the only required prop** — but always pass `align` explicitly to control message side. Without `align`, the bubble renders without a positioning class.
+
+2. **All optional sections are independently conditional** — `avatar`, `header`, `footer` each use `<Show when={prop}>`. Falsy values (`undefined`, `null`, `false`, empty string) cause their section to be unmounted entirely.
+
+3. **`bubble` accepts any JSX** — string, `<span>`, `<div>` with multiline content, images, etc. The `.chat-bubble` div wraps whatever is passed.
+
+4. **`footer` prop is broken** — see bug section. The footer visibility toggle works (via `<Show>`), but the content rendered is `bubble`, not `footer`. Do not use `footer` in production UI until fixed.
+
+5. **Component renders inside a `<>` fragment** — the root `<div class="chat">` is not the component root; it's wrapped in a fragment. This has no practical impact but means the component emits no additional wrapper element.
+
+6. **Convention for conversation UIs** — wrap multiple `ChatBubble` components in a `<div class="space-y-2">` container. Use `max-w-xl` or similar to constrain chat width.
+
+---
+
+## COMMON MISTAKES TO AVOID
+
+| Mistake | Correct approach |
+|---|---|
+| Omitting `align` prop | Always pass `align="start"` or `align="end"` explicitly |
+| Using `footer` prop expecting custom footer content | `footer` has a bug — it renders `bubble` content instead; avoid until fixed |
+| Passing `align` as a reactive signal without accessor | Pass signal accessor: `align={message.isOwn ? 'end' : 'start'}` |
+| Putting children inside `<ChatBubble>` | Component is NOT a `ParentComponent` — use `bubble` prop instead |
+| Omitting `color` and expecting styled bubble | Without `color`, bubble uses DaisyUI default (no color class) |
+| Forgetting `space-y-2` wrapper for conversation | Multiple bubbles need spacing — wrap in `<div class="space-y-2">` |
+
+---
+
+## FULL EXAMPLE — Complete chat UI
+
+```tsx
+import { ChatBubble } from 'solid-tom-ui';
+import { Avatar } from 'solid-tom-ui';
+import { For } from 'solid-js';
+
+const messages = [
+  { id: '1', sender: 'other', name: 'Alice', time: '12:44', text: 'Hey! Are you free today?' },
+  { id: '2', sender: 'me',    name: 'You',   time: '12:45', text: 'Yes, what's up?' },
+  { id: '3', sender: 'other', name: 'Alice', time: '12:45', text: 'Want to grab lunch?' },
+  { id: '4', sender: 'me',    name: 'You',   time: '12:46', text: 'Sure! Where do you want to go?' },
+];
+
+<div class="bg-base-200 max-w-xl space-y-2 rounded-xl p-4">
+  <For each={messages}>
+    {msg => (
+      <ChatBubble
+        align={msg.sender === 'me' ? 'end' : 'start'}
+        color={msg.sender === 'me' ? 'primary' : 'neutral'}
+        avatar={<Avatar image="/avatar.webp" width={36} />}
+        header={
+          <div class="flex items-center gap-2">
+            <span class="font-bold text-sm">{msg.name}</span>
+            <time class="text-xs opacity-50">{msg.time}</time>
+          </div>
+        }
+        bubble={<span>{msg.text}</span>}
+      />
+    )}
+  </For>
+</div>
+```
+---
+
+## Component Conventions
+
+> **CSS encoding**: internal CSS classes use short encoded names (e.g. `cb01`, `cb02`) per project convention.
+
+> **Unique IDs**: if this component needs to generate HTML `id` attributes, always use `createUniqueId()` from `solid-js` — never `Math.random()` or `Date.now()`.

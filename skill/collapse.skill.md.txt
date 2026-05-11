@@ -1,0 +1,329 @@
+## COMPONENT IDENTITY
+- **Import**: `import { Collapse } from 'solid-tom-ui';`
+- **Export**: `Collapse` (named export)
+- **Framework**: SolidJS
+- **Purpose**: Collapsible panel — NOT a `ParentComponent`; content passed via `content` prop
+
+---
+
+## TYPE SIGNATURE
+
+```ts
+interface CollapseProps {
+  title: string;                    // REQUIRED — header text
+  content: SolidComponent;          // REQUIRED — body content (JSX, string, or function component)
+  icon?: {
+    type?: 'arrow' | 'plus';        // icon style; default: 'arrow'
+    postion?: 'start' | 'end';      // icon position; default: 'end'
+  };
+  force?: 'open' | 'close';         // controlled visibility — omit for uncontrolled
+  onOpen?: () => void;              // callback when panel opens (uncontrolled only)
+  onClose?: () => void;             // callback when panel closes (uncontrolled only)
+  id?: string;                      // id applied to the internal checkbox input
+  color?: BaseColorProps | 'transparent'; // semantic color theme; default: 'transparent'
+  class?: Partial<Record<'root' | 'title' | 'content', string>>;
+}
+```
+
+---
+
+## DEFAULT VALUES (via `mergeProps`)
+
+| Prop            | Default         |
+|-----------------|-----------------|
+| `icon.type`     | `'arrow'`       |
+| `icon.postion`  | `'end'`         |
+| `color`         | `'transparent'` |
+
+---
+
+## PROP REFERENCE
+
+| Prop            | Type                              | Required | Description                                                                              |
+|-----------------|-----------------------------------|----------|------------------------------------------------------------------------------------------|
+| `title`         | `string`                          | ✅ YES   | Text shown in the collapse header bar                                                    |
+| `content`       | `SolidComponent`                  | ✅ YES   | Content rendered in the collapsible body panel                                           |
+| `icon.type`     | `'arrow' \| 'plus'`              | ❌ NO    | `'arrow'` → chevron icon; `'plus'` → plus/minus icon                                    |
+| `icon.postion`  | `'start' \| 'end'`               | ❌ NO    | `'end'` → icon on right side (default); `'start'` → icon on left side                  |
+| `force`         | `'open' \| 'close'`              | ❌ NO    | Forces panel open or closed. When set, checkbox is removed and callbacks are ignored     |
+| `onOpen`        | `() => void`                      | ❌ NO    | Fired when user opens the panel (uncontrolled only — ignored when `force` is set)        |
+| `onClose`       | `() => void`                      | ❌ NO    | Fired when user closes the panel (uncontrolled only — ignored when `force` is set)       |
+| `id`            | `string`                          | ❌ NO    | `id` attribute on the internal `<input type="checkbox">` — enables external label links  |
+| `color`         | `BaseColorProps \| 'transparent'` | ❌ NO    | Semantic color theme — sets border, background tint, and title/icon color via `--color`  |
+| `class.root`    | `string`                          | ❌ NO    | Extra classes on the root `<div class="collapse">`                                       |
+| `class.title`   | `string`                          | ❌ NO    | Extra classes on `<div class="collapse-title">`                                          |
+| `class.content` | `string`                          | ❌ NO    | Extra classes on `<div class="collapse-content">`                                        |
+
+> ⚠️ NOTE: `icon.postion` has a typo in source — it is `postion` (missing 'i'), not `position`. Use exactly `postion` when passing the prop.
+
+---
+
+## OPEN/CLOSE MODES
+
+### Mode 1 — Uncontrolled (default, no `force` prop)
+- An `<input type="checkbox">` is rendered inside the root div
+- DaisyUI uses the checkbox checked state to show/hide the panel via CSS
+- `onOpen` fires when checkbox becomes checked; `onClose` fires when unchecked
+- `id` prop sets the checkbox's `id` — allows external `<label for="id">` to toggle the collapse
+
+```tsx
+<Collapse
+  title="What is SolidJS?"
+  content={<p>SolidJS is a declarative UI library.</p>}
+  onOpen={() => console.log('opened')}
+  onClose={() => console.log('closed')}
+/>
+```
+
+### Mode 2 — Controlled (`force` prop)
+- `force="open"` → adds `collapse-open` class, checkbox is **removed from DOM**
+- `force="close"` → adds `collapse-close` class, checkbox is **removed from DOM**
+- `onOpen` and `onClose` are **completely ignored** when `force` is set
+- Toggling is the consumer's responsibility via a reactive signal
+
+```tsx
+const [status, setStatus] = createSignal<'open' | 'close'>('close');
+
+<Button onClick={() => setStatus(s => s === 'open' ? 'close' : 'open')}>
+  Toggle
+</Button>
+
+<Collapse
+  title="Controlled Collapse"
+  content={<p>Controlled by external signal.</p>}
+  force={status()}
+/>
+```
+
+### Mode 3 — Mixed: `force={undefined}` restores uncontrolled
+- Passing `force={undefined}` (or not passing `force`) keeps the checkbox in the DOM
+- Useful when signal can return `undefined` as a "no override" state
+
+```tsx
+// signal can be 'open' | 'close' | undefined
+const [force, setForce] = createSignal<'open' | 'close' | undefined>(undefined);
+
+<Collapse title="..." content="..." force={force()} />
+```
+
+---
+
+## ICON VARIANTS
+
+### `icon.type`
+| Value     | DaisyUI class      | Visual                     |
+|-----------|--------------------|----------------------------|
+| `'arrow'` | `collapse-arrow`   | Chevron (▼) rotates on open |
+| `'plus'`  | `collapse-plus`    | Plus (+) changes to minus (−) on open |
+
+### `icon.postion`
+| Value     | CSS effect                                              |
+|-----------|---------------------------------------------------------|
+| `'end'`   | Icon on the right side (default DaisyUI behavior)       |
+| `'start'` | Icon on the left side — applies `after:start-5 after:end-auto pe-4 ps-12` |
+
+---
+
+## `content` PROP — Accepts multiple forms
+
+`SolidComponent` means the prop accepts:
+
+```tsx
+// 1. String literal
+content="Plain text content"
+
+// 2. JSX element
+content={<p class="text-sm">Some <strong>HTML</strong> content</p>}
+
+// 3. Function component (with own reactive state)
+content={() => {
+  const [count, setCount] = createSignal(0);
+  return (
+    <Button onClick={() => setCount(c => c + 1)}>
+      Count = {count()}
+    </Button>
+  );
+}}
+```
+
+> ℹ️ Function form is useful when the content needs its own SolidJS reactive state. The function is called as a component, preserving signal reactivity.
+
+---
+
+## INTERNAL DOM STRUCTURE
+
+```
+<div class="bg-base-100 border-base-300 collapse border collapse-arrow|plus [collapse-open|collapse-close] [class.root]">
+  │
+  ├── <input type="checkbox" id="?" onChange={...} />   ← only when force is undefined
+  │
+  ├── <div class="collapse-title font-semibold [iconPosition classes] [class.title]">
+  │     {title}
+  │   </div>
+  │
+  └── <div class="collapse-content text-sm [class.content]">
+        {content}
+      </div>
+```
+
+---
+
+## `id` PROP — External trigger via `<label>`
+
+The `id` is applied to the internal `<input type="checkbox">`, enabling an external `<label>` element to toggle the collapse without clicking the title bar directly:
+
+```tsx
+<label for="my-collapse" class="btn">Toggle from outside</label>
+
+<Collapse
+  id="my-collapse"
+  title="Externally triggered"
+  content="Toggled by the label above"
+/>
+```
+
+> ⚠️ `id` only works in uncontrolled mode — when `force` is set, the checkbox is removed from the DOM and the `id` has no effect.
+
+---
+
+## BEHAVIOR NOTES FOR AGENTS
+
+1. **`force` removes the checkbox entirely** — when `force` is set, `<Show when={!p.force}>` evaluates to false and the `<input>` is unmounted. The DaisyUI `collapse-open`/`collapse-close` classes on the root div take over visibility control.
+
+2. **`onOpen`/`onClose` are checkbox-based** — they fire on `onChange` of the checkbox, which only exists in uncontrolled mode. Setting `force` silently disables these callbacks with no error.
+
+3. **`content` renders inside `collapse-content` with `text-sm`** — the wrapper always has `text-sm`. Override with `class.content` if larger text is needed.
+
+4. **`title` is `string` only** — no JSX allowed in the title. For rich title content, use `class.title` to style and keep the text in `title`.
+
+5. **`icon.postion` typo is intentional** — the source code has `postion` (not `position`). Always use `postion` in the prop object or TypeScript will error.
+
+6. **Root div always has `bg-base-100 border-base-300 border`** — there is no prop to remove the border or background. Use `class.root` to override with Tailwind.
+
+7. **Accordion pattern** — to build an accordion (only one item open at a time), use the native HTML behavior: give all checkboxes the same `name` attribute. However, this component does not expose a `name` prop — implement accordion via controlled `force` signals instead.
+
+8. **`color` prop adds `sui-collapse` class** — when `color` is set to any value other than `'transparent'`, the class `sui-collapse` is added to the root div. This class uses `var(--color)` (set by `.color-primary` etc.) to apply border tint, background tint, title color, and icon color.
+
+---
+
+## COLOR SYSTEM
+
+The `color` prop accepts any `BaseColorProps` value (`'primary' | 'neutral' | 'secondary' | 'accent' | 'info' | 'success' | 'warning' | 'error'`) or `'transparent'` (default — no color applied).
+
+### How it works
+1. `getColor(p.color)` maps the value to a CSS class (e.g. `color-primary`) that sets `--color: var(--color-primary)`.
+2. When color is not `'transparent'`, the class `sui-collapse` is also added — this class consumes `var(--color)` to style the collapse:
+   - **Border**: `color-mix(in oklch, var(--color) 30%, var(--color-base-300))`
+   - **Background**: `color-mix(in oklch, var(--color) 5%, var(--color-base-100))` — a subtle tint
+   - **Title text**: `var(--color)`
+   - **Icon (arrow/plus)**: `var(--color)` via `::after` pseudo-element
+
+```tsx
+// All 8 color variants
+<Collapse color="primary" title="Primary" content="..." />
+<Collapse color="secondary" title="Secondary" content="..." />
+<Collapse color="accent" title="Accent" content="..." />
+<Collapse color="neutral" title="Neutral" content="..." />
+<Collapse color="info" title="Info" content="..." />
+<Collapse color="success" title="Success" content="..." />
+<Collapse color="warning" title="Warning" content="..." />
+<Collapse color="error" title="Error" content="..." />
+
+// Default — no color styling
+<Collapse title="No color" content="..." />
+// Explicit transparent — same as default
+<Collapse color="transparent" title="Transparent" content="..." />
+```
+
+> ℹ️ The `color` prop and the `class` prop are independent — you can combine `color="primary"` with `class.content` to further customize the content area without affecting the color theme.
+
+---
+
+## COMMON MISTAKES TO AVOID
+
+| Mistake | Correct approach |
+|---|---|
+| Using `icon.position` (with 'i') | Use `icon.postion` — the prop has a typo in source |
+| Expecting `onOpen`/`onClose` to fire when `force` is set | These callbacks only fire in uncontrolled mode |
+| Passing JSX to `title` | `title` is `string` only; style text with `class.title` |
+| Setting `id` when `force` is also set | `id` targets the checkbox which is removed in controlled mode |
+| Overriding `text-sm` inside content without `class.content` | Use `class.content` to override content text styles |
+| Using `force={false}` expecting uncontrolled | `force` accepts `'open' \| 'close' \| undefined` — use `undefined` or omit prop for uncontrolled |
+| Using `class.root` for semantic color when `color` prop exists | Prefer `color="primary"` over `class={{ root: 'border-primary bg-primary/5' }}` |
+
+---
+
+## FULL EXAMPLE — All features
+
+```tsx
+import { Collapse } from 'solid-tom-ui';
+import { createSignal } from 'solid-js';
+import { Button } from 'solid-tom-ui';
+
+// 1. Uncontrolled with arrow icon (default)
+<Collapse
+  title="What is SolidJS?"
+  content={<p>SolidJS is a fine-grained reactive UI library.</p>}
+  onOpen={() => console.log('opened')}
+  onClose={() => console.log('closed')}
+/>
+
+// 2. Plus icon, icon on start (left)
+<Collapse
+  title="How does reactivity work?"
+  content="Signals track dependencies automatically at runtime."
+  icon={{ type: 'plus', postion: 'start' }}
+/>
+
+// 3. Controlled mode
+const [force, setForce] = createSignal<'open' | 'close' | undefined>(undefined);
+
+<Button onClick={() => setForce(f => f === 'open' ? 'close' : 'open')}>
+  Toggle
+</Button>
+<Collapse
+  title="Controlled Collapse"
+  content={<p>Opened and closed externally.</p>}
+  force={force()}
+/>
+
+// 4. Content with own reactive state
+<Collapse
+  title="Interactive Content"
+  content={() => {
+    const [count, setCount] = createSignal(0);
+    return (
+      <Button variant="solid" onClick={() => setCount(c => c + 1)}>
+        Clicked {count()} times
+      </Button>
+    );
+  }}
+/>
+
+// 5. External label trigger via id
+<label for="faq-1" class="btn btn-sm">Open FAQ</label>
+<Collapse
+  id="faq-1"
+  title="Frequently Asked Question"
+  content="This is the answer to the FAQ."
+  class={{ root: 'mt-2' }}
+/>
+
+// 6. Custom styling
+<Collapse
+  title="Styled Collapse"
+  content="Custom styled content area."
+  class={{
+    root: 'border-primary bg-primary/5',
+    title: 'text-primary text-lg',
+    content: 'text-base text-base-content/70',
+  }}
+/>
+```
+---
+
+## Component Conventions
+
+> **CSS encoding**: internal CSS classes use short encoded names (e.g. `co01`, `co02`) per project convention.
+
+> **Unique IDs**: if this component needs to generate HTML `id` attributes, always use `createUniqueId()` from `solid-js` — never `Math.random()` or `Date.now()`.

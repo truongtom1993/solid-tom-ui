@@ -1,0 +1,114 @@
+## COMPONENT IDENTITY
+- **Import**: `import { Iframe } from 'solid-tom-ui';`
+- **Export**: `Iframe` (named export)
+- **Framework**: SolidJS
+- **Purpose**: Renders a SolidJS component inside a sandboxed `<iframe>` — inherits parent styles, sets up event delegation, and preserves reactivity across the iframe boundary
+
+## PURPOSE
+Renders a SolidJS component inside a sandboxed `<iframe>` element while:
+1. Cloning all parent `<style>` and `<link rel="stylesheet">` tags into the iframe `<head>` so styles are inherited.
+2. Setting up SolidJS event delegation inside the iframe document (`click`, `mousedown`, `input`, `change`, `focus`, `blur`).
+3. Running the component under the parent's reactive owner context, preserving reactivity and signal updates across the iframe boundary.
+
+## TYPE SIGNATURE
+
+```typescript
+import { Iframe } from 'solid-tom-ui';
+import { SolidComponent } from '@/type';
+
+<Iframe
+  element={SolidComponent}  // REQUIRED: a SolidJS component (not JSX, not an element — the component function itself)
+/>
+```
+
+### `SolidComponent` type (from `@/type`)
+```typescript
+type SolidComponent = Component<any> | (() => JSX.Element);
+```
+
+## INTERNAL BEHAVIOR
+- The iframe has class `size-full` (fills its parent container).
+- Mounting is deferred by `setTimeout(..., 200)` to wait for the iframe DOM to be ready.
+- The component is rendered via `render(props.element as () => Element, iframeDoc.body)`.
+
+## USAGE PATTERNS
+
+### Basic: render a component in an isolated iframe
+```tsx
+import { Iframe } from '@/components/iframe';
+import { MyWidget } from '@/components/my-widget';
+
+// Wrap in a sized container — Iframe fills 100% of its parent
+<div class="h-64 w-full border rounded">
+  <Iframe element={MyWidget} />
+</div>
+```
+
+### Render an inline arrow function component
+```tsx
+const PreviewContent = () => (
+  <div class="p-4 bg-base-100">
+    <p>This renders inside an iframe</p>
+  </div>
+);
+
+<div class="h-96 w-full">
+  <Iframe element={PreviewContent} />
+</div>
+```
+
+### Use case: component preview sandbox (e.g., documentation page)
+```tsx
+import { CodePreview } from '@/components/doc/CodePreview';
+import { Iframe } from '@/components/iframe';
+
+// Wrapping a preview inside Iframe ensures style isolation
+<div class="h-80 overflow-hidden rounded-lg border">
+  <Iframe element={() => <SomeExampleComponent />} />
+</div>
+```
+
+## CONSTRAINTS
+- **Pass the component function, NOT rendered JSX.** `element` expects a component reference or factory function, not `<MyWidget />`.
+  ```tsx
+  // ✅ Correct
+  <Iframe element={MyWidget} />
+  <Iframe element={() => <MyWidget someProp="value" />} />
+
+  // ❌ Wrong — passing already-rendered JSX
+  <Iframe element={<MyWidget />} />
+  ```
+- **Iframe fills its parent** via `size-full` (`width: 100%; height: 100%`). Always wrap it in a container with explicit dimensions.
+- **Mounting delay**: the component renders after ~200ms. Do not rely on immediate DOM availability.
+- **No scrollbars by default**: the iframe body inherits styles from the parent. Add `overflow: auto` to the rendered component if scrolling is needed.
+- **No cross-origin support**: this component only works for same-origin content (it directly accesses `contentDocument`).
+
+## ANTI-PATTERNS
+```tsx
+// ❌ No wrapper size — iframe renders but is invisible (0 height)
+<Iframe element={MyWidget} />
+
+// ✅ Always provide a sized wrapper
+<div class="h-64 w-full">
+  <Iframe element={MyWidget} />
+</div>
+
+// ❌ Passing JSX instead of component function
+<Iframe element={<MyWidget />} />
+
+// ✅ Pass component reference or factory
+<Iframe element={MyWidget} />
+<Iframe element={() => <MyWidget foo="bar" />} />
+```
+
+## DECISION RULES
+- Use `Iframe` when you need to render a SolidJS component in a visually isolated sandbox (e.g., live component previews, documentation demos, embedded widgets).
+- Do NOT use `Iframe` for external URLs — it only renders SolidJS components inside the iframe body.
+- For component demos in documentation, prefer wrapping with `<div class="h-[desired-height] w-full">` around `<Iframe>`.
+---
+
+## Component Conventions
+
+> **CSS encoding**: internal CSS classes use short encoded names (e.g. `if01`, `if02`) per project convention.
+
+> **Unique IDs**: if this component needs to generate HTML `id` attributes, always use `createUniqueId()` from `solid-js` — never `Math.random()` or `Date.now()`.

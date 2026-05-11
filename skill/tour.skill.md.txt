@@ -1,0 +1,156 @@
+## COMPONENT IDENTITY
+- **Import**: `import { createTour } from 'solid-tom-ui';`
+- **Export**: `createTour` (factory function)
+- **Framework**: SolidJS
+- **Purpose**: Step-by-step walkthrough — highlights elements with a spotlight overlay and shows a popup at each step; uses a factory pattern, NOT a JSX component
+
+## API: createTour()
+
+`Tour` is NOT declared as a regular JSX component. Instead, use `createTour()` which returns:
+- **`api`**: object with control methods
+- **`TourUI`**: component that must be mounted in JSX
+
+```tsx
+import { createTour } from 'solid-tom-ui';
+
+const MyPage = () => {
+  const [tour, TourUI] = createTour({
+    steps: [...],
+    onFinish: () => console.log('Done!'),
+  });
+
+  return (
+    <>
+      <TourUI />  {/* Must be mounted */}
+      <button onClick={() => tour.start()}>Start</button>
+    </>
+  );
+};
+```
+
+## TourProps
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `steps` | `TourStep[]` | required | Array of step definitions |
+| `onFinish` | `() => void` | - | Callback when all steps are completed |
+| `onClose` | `(step: number) => void` | - | Callback when closed before finishing |
+| `onStepChange` | `(step: number) => void` | - | Callback on each step change |
+| `showClose` | `boolean` | `true` | Show the X close button |
+| `prevLabel` | `string` | `'Prev'` | Label for the Previous button |
+| `nextLabel` | `string` | `'Next'` | Label for the Next button |
+| `doneLabel` | `string` | `'Done'` | Label for the button on the last step |
+| `showProgress` | `boolean` | `true` | Show dot progress indicator |
+| `maskClosable` | `boolean` | `false` | Click overlay to close |
+| `class` | `Partial<Record<SlotName, string>>` | - | Override CSS per slot |
+
+## TourStep
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `target` | `string` | - | HTML `id` of the element to highlight |
+| `title` | `JSX.Element` | - | Popup title |
+| `content` | `JSX.Element` | - | Popup body content |
+| `footer` | `JSX.Element` | - | Custom footer (overrides Prev/Next buttons) |
+| `placement` | `TourPlacement` | `'bottom'` | Popup position relative to the element |
+| `spotlightPadding` | `number` | `8` | Padding (px) around the highlighted area |
+| `onEnter` | `(step: number) => void` | - | Callback when step is shown |
+| `onLeave` | `(step: number) => void` | - | Callback when leaving step |
+
+## TourAPI (control methods)
+
+| Method | Description |
+|--------|-------------|
+| `start(stepIndex?)` | Start tour from step 0 (or specified index) |
+| `stop()` | Stop and close the tour |
+| `next()` | Go to next step |
+| `prev()` | Go to previous step |
+| `goTo(stepIndex)` | Jump to a specific step (0-indexed) |
+| `isActive()` | Signal → boolean: whether tour is running |
+| `currentStep()` | Signal → number: current step index |
+
+## TourPlacement
+
+```
+'top' | 'top-start' | 'top-end'
+'bottom' | 'bottom-start' | 'bottom-end'
+'left' | 'left-start' | 'left-end'
+'right' | 'right-start' | 'right-end'
+'center'   ← popup centered on screen, not anchored to any element
+```
+
+## Common examples
+
+### Basic tour
+
+```tsx
+const [tour, TourUI] = createTour({
+  steps: [
+    {
+      target: 'header-logo',
+      title: 'Logo',
+      content: 'Click to go back to homepage.',
+      placement: 'bottom',
+    },
+    {
+      target: 'nav-search',
+      title: 'Search',
+      content: 'Enter keywords to find content.',
+    },
+  ],
+  onFinish: () => console.log('Finished!'),
+});
+```
+
+### Start from step 2
+
+```tsx
+tour.start(1); // 0-indexed
+```
+
+### Center popup (no element highlight)
+
+```tsx
+const [tour, TourUI] = createTour({
+  steps: [
+    { title: 'Welcome!', content: 'Quick guide...', placement: 'center' },
+  ],
+});
+```
+
+### Custom footer
+
+```tsx
+{
+  target: 'my-element',
+  title: 'Special step',
+  footer: (
+    <div class="flex justify-between w-full">
+      <button onClick={() => tour.stop()}>Skip</button>
+      <button onClick={() => tour.next()}>Continue →</button>
+    </div>
+  ),
+}
+```
+
+### Class override (slots)
+
+Slots: `root`, `mask`, `spotlight`, `popup`, `header`, `body`, `footer`, `progress`
+
+```tsx
+const [tour, TourUI] = createTour({
+  steps: [...],
+  class: {
+    popup: 'border border-primary',
+    header: 'bg-primary/10',
+  },
+});
+```
+
+## Gotchas
+
+- **`TourUI` MUST be mounted in JSX** — without it, the overlay and popup will not render.
+- **`target` must be an HTML `id`** — not a class or CSS selector; the element must exist in the DOM.
+- `goTo()` and `start(n)` both trigger `onLeave` for the old step and `onEnter` for the new step.
+- When `maskClosable: false` (default), users must use Prev/Next/Done buttons to navigate.
+- Tour auto-scrolls the target element into the viewport if it is out of view.
