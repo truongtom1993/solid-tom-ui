@@ -4,6 +4,7 @@ export type DropdownProps = {
     ref?: HTMLDivElement | ((el: HTMLDivElement) => void);
     triggerElement: SolidComponent;
     open?: boolean;
+    onOpenChange?: (open: boolean) => void;
     class?: Partial<Record<'anchor' | 'trigger' | 'content', string>>;
     position?: DropdownVariantsProps['position'];
     align?: DropdownVariantsProps['align'];

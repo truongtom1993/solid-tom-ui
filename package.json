@@ -1,6 +1,6 @@
 {
   "name": "solid-tom-ui",
-  "version": "1.0.15",
+  "version": "1.0.16",
   "description": "SolidJS UI component library (Ant Design–inspired, Tailwind CSS + DaisyUI)",
   "homepage": "https://solid-tom-ui.netlify.app/",
   "repository": {
