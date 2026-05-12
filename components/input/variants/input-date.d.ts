@@ -1,4 +1,4 @@
 import { Component } from 'solid-js';
-import { InputDateProps } from '../input.types';
-export declare const InputDate: Component<InputDateProps>;
+import { InputDateVariantProps } from '../input.types';
+export declare const InputDate: Component<InputDateVariantProps>;
 //# sourceMappingURL=input-date.d.ts.map

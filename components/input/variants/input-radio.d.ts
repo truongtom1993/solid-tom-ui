@@ -1,7 +1,6 @@
 import { VariantProps } from 'class-variance-authority';
 import { Component } from 'solid-js';
-export type InputRadioProps = {
-    type: 'radio';
+export type InputRadioVariantProps = {
     size?: RadioVariantsProps['size'];
     color?: RadioVariantsProps['color'];
     id?: string;
@@ -17,6 +16,9 @@ declare const variants: (props?: ({
     color?: "primary" | "neutral" | "secondary" | "accent" | "info" | "success" | "warning" | "error" | null | undefined;
 } & import('class-variance-authority/types').ClassProp) | undefined) => string;
 export type RadioVariantsProps = VariantProps<typeof variants>;
-export declare const InputRadio: Component<InputRadioProps>;
+export type InputRadioProps = {
+    type: 'radio';
+} & InputRadioVariantProps;
+export declare const InputRadio: Component<InputRadioVariantProps>;
 export {};
 //# sourceMappingURL=input-radio.d.ts.map

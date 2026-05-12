@@ -1,4 +1,4 @@
 import { Component } from 'solid-js';
-import { InputTextProps } from '../input.types';
-export declare const InputText: Component<InputTextProps>;
+import { InputTextVariantProps } from '../input.types';
+export declare const InputText: Component<InputTextVariantProps>;
 //# sourceMappingURL=input-text.d.ts.map

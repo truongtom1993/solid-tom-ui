@@ -20,25 +20,20 @@ export interface InputBaseProps {
     onPressEnter?: (value: string, e: KeyboardEvent) => void;
     onBlur?: (value: string, e: Event) => void;
 }
-export type InputTextProps = {
-    type: 'text';
+export type InputTextVariantProps = {
     maskOptions?: FactoryOpts & {
         onAccept?: (value?: string, unmaskedValue?: string) => void;
     };
     typeOrigin?: string;
+    /** Override the native HTML input[type] attribute (e.g. 'password' for show/hide toggle). */
+    nativeType?: string;
 } & InputBaseProps;
-export type InputTextAreaProps = {
-    type: 'textarea';
+export type InputTextAreaVariantProps = {
     size?: TextAreaVariantsProps['size'];
 } & Omit<InputBaseProps, 'prefixIcon' | 'suffixIcon' | 'onPressEnter' | 'size'>;
-export type InputColorProps = {
-    type: 'color';
-} & Omit<InputBaseProps, 'prefixIcon'>;
-export type InputDateProps = {
-    type: 'date';
-} & InputBaseProps;
-export type InputNumberProps = {
-    type: 'number';
+export type InputColorVariantProps = Omit<InputBaseProps, 'prefixIcon'>;
+export type InputDateVariantProps = InputBaseProps;
+export type InputNumberVariantProps = {
     wheel?: boolean;
     keyboard?: boolean;
     offset?: number;
@@ -53,16 +48,11 @@ export type InputNumberProps = {
         onAccept?: (value?: string, unmaskedValue?: string) => void;
     };
 } & InputBaseProps;
-export type InputPasswordProps = {
-    type: 'password';
-} & Omit<InputBaseProps, 'suffixIcon'>;
-export type InputRangeProps = {
-    type: 'range';
-} & SliderProps;
-export type InputOTPProps = {
+export type InputPasswordVariantProps = Omit<InputBaseProps, 'suffixIcon'>;
+export type InputRangeVariantProps = SliderProps;
+export type InputOTPVariantProps = {
     color?: BaseColorProps;
     separator?: SolidComponent;
-    type: 'otp';
     length?: number;
     inputMode?: 'numeric' | 'text';
     allowedChars?: RegExp;
@@ -73,4 +63,28 @@ export type InputOTPProps = {
     onChange?: (otp: string) => void;
     onBlur?: (otp: string) => void;
 };
+export type InputTextProps = {
+    type: 'text';
+} & InputTextVariantProps;
+export type InputTextAreaProps = {
+    type: 'textarea';
+} & InputTextAreaVariantProps;
+export type InputColorProps = {
+    type: 'color';
+} & InputColorVariantProps;
+export type InputDateProps = {
+    type: 'date';
+} & InputDateVariantProps;
+export type InputNumberProps = {
+    type: 'number';
+} & InputNumberVariantProps;
+export type InputPasswordProps = {
+    type: 'password';
+} & InputPasswordVariantProps;
+export type InputRangeProps = {
+    type: 'range';
+} & InputRangeVariantProps;
+export type InputOTPProps = {
+    type: 'otp';
+} & InputOTPVariantProps;
 //# sourceMappingURL=input.types.d.ts.map

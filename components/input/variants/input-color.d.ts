@@ -1,4 +1,4 @@
 import { Component } from 'solid-js';
-import { InputColorProps } from '../input.types';
-export declare const InputColor: Component<InputColorProps>;
+import { InputColorVariantProps } from '../input.types';
+export declare const InputColor: Component<InputColorVariantProps>;
 //# sourceMappingURL=input-color.d.ts.map

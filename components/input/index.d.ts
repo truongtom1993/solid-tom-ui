@@ -8,6 +8,6 @@ export { InputDate } from './variants/input-date';
 export { InputRange } from './variants/input-range';
 export { InputOTP } from './variants/input-otp';
 export { InputRadio } from './variants/input-radio';
-export type { InputBaseProps, InputTextProps, InputTextAreaProps, InputColorProps, InputDateProps, InputNumberProps, InputPasswordProps, InputRangeProps, InputOTPProps, } from './input.types';
-export type { InputRadioProps } from './variants/input-radio';
+export type { InputBaseProps, InputTextProps, InputTextAreaProps, InputColorProps, InputDateProps, InputNumberProps, InputPasswordProps, InputRangeProps, InputOTPProps, InputTextVariantProps, InputTextAreaVariantProps, InputColorVariantProps, InputDateVariantProps, InputNumberVariantProps, InputPasswordVariantProps, InputRangeVariantProps, InputOTPVariantProps, } from './input.types';
+export type { InputRadioProps, InputRadioVariantProps } from './variants/input-radio';
 //# sourceMappingURL=index.d.ts.map
