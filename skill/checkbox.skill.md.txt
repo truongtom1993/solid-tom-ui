@@ -43,7 +43,7 @@ type CheckboxProps = {
 | `defaultChecked` | `boolean`                                                             | ✅ YES   | Sets initial `checked` state via DOM ref on mount — does NOT reactively update after mount |
 | `id`             | `string`                                                              | ❌ NO    | `id` on `<input>` — auto-generated if omitted; used with external `<label for="...">`    |
 | `name`           | `string`                                                              | ❌ NO    | `name` attribute for native form grouping/submission                                      |
-| `value`          | `string`                                                              | ❌ NO    | `value` submitted with form data. Overridden to `'inteterminate'` when `indeterminate` is true |
+| `value`          | `string`                                                              | ❌ NO    | `value` submitted with form data. Overridden to `'indeterminate'` when `indeterminate` is true |
 | `indeterminate`  | `boolean`                                                             | ❌ NO    | Shows dash/minus visual; blocks user toggling; sets `data-indeterminate="true"` on input  |
 | `disabled`       | `boolean`                                                             | ❌ NO    | Disables the input; prevents `onChange` from firing                                       |
 | `size`           | `'xs' \| 'sm' \| 'md' \| 'lg' \| 'xl'`                              | ❌ NO    | Visual size of the checkbox                                                               |
@@ -112,7 +112,7 @@ const [init, setInit] = createSignal(false);
 When `indeterminate={true}`:
 - Renders a **dash/minus** visual (clip-path polygon in CSS)
 - `data-indeterminate="true"` is set on the `<input>`
-- `value` prop is overridden to `'inteterminate'` (note: typo in source — single 'r')
+- `value` prop is overridden to `'indeterminate'` (note: typo in source — single 'r')
 - `onClick` calls `e.preventDefault()` — **user cannot toggle** the checkbox
 - `onChange` is **never fired** (click is blocked)
 - Useful for "select all" parent checkboxes when only some children are selected
@@ -193,7 +193,7 @@ Use `name` and `value` props for native HTML form submission:
 </form>
 ```
 
-> ⚠️ When `indeterminate={true}`, `value` is automatically overridden to `'inteterminate'` regardless of what was passed.
+> ⚠️ When `indeterminate={true}`, `value` is automatically overridden to `'indeterminate'` regardless of what was passed.
 
 ---
 
@@ -207,7 +207,7 @@ Use `name` and `value` props for native HTML form submission:
   disabled={disabled}
   name="{name}"                          ← only if name prop provided
   data-indeterminate="true"              ← only if indeterminate={true}
-  value="{value | 'inteterminate'}"
+  value="{value | 'indeterminate'}"
   onClick={...}                          ← preventDefault when indeterminate or disabled
   onChange={...}                         ← fires p.onChange with e.target.checked
 />
@@ -240,7 +240,7 @@ Use `name` and `value` props for native HTML form submission:
 | Treating `defaultChecked` as reactive | It's mount-only — use `onChange` to track state in a signal |
 | Expecting `onChange` to fire when `indeterminate={true}` | `onClick` is blocked — `onChange` never fires in indeterminate state |
 | Omitting `cursor-pointer` on wrapping `<label>` | Always add `cursor-pointer` to `<label>` for correct UX |
-| Passing `value="inteterminate"` manually | When `indeterminate={true}`, value is auto-set — no need to pass it |
+| Passing `value="indeterminate"` manually | When `indeterminate={true}`, value is auto-set — no need to pass it |
 | Using `color="default"` expecting a specific color | `'default'` applies no color class — checkbox uses browser/DaisyUI base style |
 | Relying on `id` being stable without explicit prop | Auto-generated IDs are unique but unpredictable — pass explicit `id` when needed for `<label for>` |
 

@@ -1,17 +1,25 @@
 import { VariantProps } from 'class-variance-authority';
 import { Component } from 'solid-js';
-type CheckboxProps = {
+type CheckboxBaseProps = {
     id?: string;
     name?: string;
-    defaultChecked: boolean;
     indeterminate?: boolean;
     class?: string;
     size?: CheckboxVariantsProps['size'];
     color?: CheckboxVariantsProps['color'];
     disabled?: boolean;
-    onChange?: (checked: boolean | null) => void;
+    onChange?: (checked: boolean) => void;
     value?: string;
 };
+type CheckboxUncontrolled = CheckboxBaseProps & {
+    defaultChecked?: boolean;
+    checked?: never;
+};
+type CheckboxControlled = CheckboxBaseProps & {
+    checked: boolean;
+    defaultChecked?: never;
+};
+export type CheckboxProps = CheckboxUncontrolled | CheckboxControlled;
 declare const variants: (props?: ({
     size?: "xs" | "sm" | "md" | "lg" | "xl" | null | undefined;
     color?: "primary" | "neutral" | "secondary" | "accent" | "info" | "success" | "warning" | "error" | "default" | null | undefined;

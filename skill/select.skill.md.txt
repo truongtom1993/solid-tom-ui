@@ -653,7 +653,7 @@ To add custom class to root or popup: `class={{ root: 'my-root', popup: 'my-popu
 - Don't mix `labelInValue={true}` with raw string values — `onChange` will receive `LabeledValue` objects.
 - Don't import `SelectExample` in production — it's a demo component only.
 - Don't set `placement` expecting auto-flip — choose the direction that always has available space.
-- Don't write `variant="outlined"` (with "d") — the correct value is `"outline"`.
+- Don't write `variant="outline"` (with "d") — the correct value is `"outline"`.
 ---
 
 ## Component Conventions
