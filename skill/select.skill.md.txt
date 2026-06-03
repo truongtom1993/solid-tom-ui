@@ -39,6 +39,7 @@
 | `popupRender`              | `(originNode: JSXElement) => JSXElement`                             | —             | Wrap/augment dropdown content.                                                                                       |
 | `optionRender`             | `(option: FlattenOptionData, info: { index: number }) => JSXElement` | —             | Custom render for each option item.                                                                                  |
 | `labelRender`              | `(props: LabelInValueType) => JSXElement`                            | —             | Custom render for the selected label in trigger.                                                                     |
+| `name`                     | `string`                                                             | —             | HTML form field name. Injects a hidden `<input>` for native form submission. See [Form Integration](#form-integration). |
 | `class`                    | `Partial<Record<'root' \| 'popup', string>>`                         | —             | Custom class for root element and popup.                                                                             |
 ### Single-mode-only props (mode='single' or omitted)
 
@@ -615,6 +616,83 @@ To add custom class to root or popup: `class={{ root: 'my-root', popup: 'my-popu
 
 ---
 
+## FORM INTEGRATION
+
+`Select` is a custom component (renders `div` + `Dropdown`), **not** a native `<select>`. Browser form submission only collects values from native form elements (`input`, `select`, `textarea`). Without the `name` prop, `Select` value is invisible to `FormData` / `form.submit()`.
+
+When `name` is provided, the component injects a hidden `<input type="hidden">` that stays in sync with the selected value:
+
+- **Single mode**: `value="chosen-value"` (string)
+- **Multiple mode**: `value="val1,val2,val3"` (comma-joined string)
+
+### 27. Select inside a native form (single)
+
+```tsx
+<form
+  onSubmit={e => {
+    e.preventDefault();
+    const data = new FormData(e.currentTarget);
+    console.log(data.get('status')); // "active"
+  }}
+>
+  <Select
+    name="status"
+    options={[
+      { label: 'Active', value: 'active' },
+      { label: 'Inactive', value: 'inactive' },
+    ]}
+    placeholder="Select status..."
+  />
+  <button type="submit">Submit</button>
+</form>
+```
+
+### 28. Select inside a native form (multiple, comma-joined)
+
+```tsx
+<form
+  onSubmit={e => {
+    e.preventDefault();
+    const data = new FormData(e.currentTarget);
+    const tags = (data.get('tags') as string).split(',').filter(Boolean);
+    console.log(tags); // ['js', 'ts', 'solid']
+  }}
+>
+  <Select
+    name="tags"
+    mode="multiple"
+    options={[
+      { label: 'JavaScript', value: 'js' },
+      { label: 'TypeScript', value: 'ts' },
+      { label: 'SolidJS', value: 'solid' },
+    ]}
+    placeholder="Select tags..."
+  />
+  <button type="submit">Submit</button>
+</form>
+```
+
+### 29. With @tanstack/solid-form
+
+When using a form library that manages its own state (e.g. `@tanstack/solid-form`), use `onChange` + controlled `value` instead of `name`. The `name` prop is only needed for **native** form submission.
+
+```tsx
+// Prefer onChange for form libraries — no 'name' needed
+<Select
+  value={field.state.value}
+  onChange={val => field.handleChange(val as string)}
+  options={options}
+/>
+```
+
+### Gotchas
+
+- **`name` + `labelInValue`**: The hidden input stores raw values, not label objects. E.g. `value="active"`, not `value="{\"value\":\"active\",\"label\":\"Active\"}"`.
+- **Empty selection**: When nothing is selected, the hidden input value is `""`. `FormData.get('name')` returns `""` (not `null`).
+- **Multiple mode parsing**: `data.get('tags')` returns a comma-joined string — split and filter empty strings before use: `(val as string).split(',').filter(Boolean)`.
+
+---
+
 ## CONSTRAINTS & EDGE CASES
 
 - In **controlled mode**, `value` must always be updated via `onChange`. The component does not force-sync controlled values into internal state.
@@ -644,6 +722,8 @@ To add custom class to root or popup: `class={{ root: 'my-root', popup: 'my-popu
 - Set `onMouseDown={e => e.stopPropagation()}` on interactive elements inside `popupRender` footer to prevent premature close.
 - Use `fieldNames` when options come from an API with non-standard field names.
 - Use `showSearch={{ filterOption: false, onSearch }}` for server-side search.
+- Use `name` prop when Select lives inside a native `<form>` that submits via `FormData` or `form.submit()`.
+- For form libraries (`@tanstack/solid-form`, `solid-hook-form`), skip `name` and use `value` + `onChange` instead.
 
 **DON'T**
 

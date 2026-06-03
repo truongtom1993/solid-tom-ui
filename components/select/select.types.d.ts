@@ -91,6 +91,7 @@ export type SelectBaseProps = {
     variant?: SelectVariantsProps['variant'];
     virtual?: boolean;
     blockScroll?: boolean;
+    name?: string;
     class?: Partial<Record<'root' | 'dropdownContent', string>>;
     onActive?: (value: string | number | LabeledValue) => void;
     onBlur?: (event: FocusEvent) => void;

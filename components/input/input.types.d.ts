@@ -5,6 +5,7 @@ import { SliderProps } from '../slider/slider.types';
 import { BaseColorProps, SolidComponent } from '../../type';
 export interface InputBaseProps {
     value?: string;
+    name?: string;
     variant?: InputVariantsProps['variant'];
     allowClear?: boolean;
     class?: Partial<Record<'root' | 'input', string>>;

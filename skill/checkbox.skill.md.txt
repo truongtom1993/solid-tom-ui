@@ -2,198 +2,205 @@
 - **Import**: `import { Checkbox } from 'solid-tom-ui';`
 - **Export**: `Checkbox` (named export)
 - **Framework**: SolidJS
-- **Purpose**: Single `<input type="checkbox">` — **uncontrolled**: initial state via `defaultChecked`, internal DOM state drives truth thereafter
+- **Purpose**: Single `<input type="checkbox">` — supports both **controlled** (`checked` prop) and **uncontrolled** (`defaultChecked` prop) modes
 
 ---
 
 ## TYPE SIGNATURE
 
 ```ts
-type CheckboxProps = {
-  defaultChecked: boolean;               // REQUIRED — sets initial checked state via ref
-  id?: string;                           // auto-generated via createUniqueId() if omitted
-  name?: string;                         // for form submission grouping
-  value?: string;                        // form submission value (overridden when indeterminate)
-  indeterminate?: boolean;               // renders dash/minus visual state; blocks toggling
-  disabled?: boolean;                    // prevents interaction
+type CheckboxBaseProps = {
+  id?: string;
+  name?: string;
+  value?: string;
+  indeterminate?: boolean;
+  disabled?: boolean;
   size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
   color?: 'default' | 'neutral' | 'primary' | 'secondary' | 'accent' | 'info' | 'success' | 'warning' | 'error';
-  class?: string;                        // extra classes on <input>
-  onChange?: (checked: boolean | null) => void;
+  class?: string;
+  onChange?: (checked: boolean) => void;
 };
+
+// Uncontrolled — DOM owns state
+type CheckboxUncontrolled = CheckboxBaseProps & {
+  defaultChecked?: boolean;
+  checked?: never;
+};
+
+// Controlled — parent owns state
+type CheckboxControlled = CheckboxBaseProps & {
+  checked: boolean;
+  defaultChecked?: never;
+};
+
+type CheckboxProps = CheckboxUncontrolled | CheckboxControlled;
 ```
 
 ---
 
 ## DEFAULT VALUES (via `mergeProps`)
 
-| Prop           | Default                  |
-|----------------|--------------------------|
-| `size`         | `'xs'`                   |
-| `color`        | `'primary'`              |
-| `id`           | `createUniqueId()` — auto-generated unique string |
-| `defaultChecked` | `false`               |
+| Prop    | Default                              |
+|---------|--------------------------------------|
+| `size`  | `'xs'`                               |
+| `color` | `'primary'`                          |
+| `id`    | `createUniqueId()` — auto-generated  |
 
 ---
 
 ## PROP REFERENCE
 
-| Prop             | Type                                                                  | Required | Description                                                                               |
-|------------------|-----------------------------------------------------------------------|----------|-------------------------------------------------------------------------------------------|
-| `defaultChecked` | `boolean`                                                             | ✅ YES   | Sets initial `checked` state via DOM ref on mount — does NOT reactively update after mount |
-| `id`             | `string`                                                              | ❌ NO    | `id` on `<input>` — auto-generated if omitted; used with external `<label for="...">`    |
-| `name`           | `string`                                                              | ❌ NO    | `name` attribute for native form grouping/submission                                      |
-| `value`          | `string`                                                              | ❌ NO    | `value` submitted with form data. Overridden to `'indeterminate'` when `indeterminate` is true |
-| `indeterminate`  | `boolean`                                                             | ❌ NO    | Shows dash/minus visual; blocks user toggling; sets `data-indeterminate="true"` on input  |
-| `disabled`       | `boolean`                                                             | ❌ NO    | Disables the input; prevents `onChange` from firing                                       |
-| `size`           | `'xs' \| 'sm' \| 'md' \| 'lg' \| 'xl'`                              | ❌ NO    | Visual size of the checkbox                                                               |
-| `color`          | `'default' \| 'neutral' \| 'primary' \| 'secondary' \| 'accent' \| 'info' \| 'success' \| 'warning' \| 'error'` | ❌ NO | Checkbox fill color when checked |
-| `class`          | `string`                                                              | ❌ NO    | Extra Tailwind classes appended directly to `<input>`                                     |
-| `onChange`       | `(checked: boolean \| null) => void`                                  | ❌ NO    | Fires on change with `e.target.checked` value. NOT fired when `indeterminate` or `disabled` |
+| Prop             | Type                                                        | Required | Description                                                                                        |
+|------------------|-------------------------------------------------------------|----------|----------------------------------------------------------------------------------------------------|
+| `checked`        | `boolean`                                                   | ❌ NO    | **Controlled mode** — parent owns state. Mutually exclusive with `defaultChecked`.                  |
+| `defaultChecked` | `boolean`                                                   | ❌ NO    | **Uncontrolled mode** — sets initial `checked` via DOM ref on mount only. Mutually exclusive with `checked`. |
+| `indeterminate`  | `boolean`                                                   | ❌ NO    | Always controlled. Shows dash/minus visual; blocks user toggling. Synced to `input.indeterminate` DOM property via `createEffect`. |
+| `id`             | `string`                                                    | ❌ NO    | `id` on `<input>` — auto-generated if omitted                                                      |
+| `name`           | `string`                                                    | ❌ NO    | `name` attribute for native form submission grouping                                               |
+| `value`          | `string`                                                    | ❌ NO    | HTML `value` attribute — submitted with form data when checkbox is checked. Standard HTML behavior. |
+| `disabled`       | `boolean`                                                   | ❌ NO    | Disables input; prevents toggling                                                                   |
+| `size`           | `'xs' \| 'sm' \| 'md' \| 'lg' \| 'xl'`                    | ❌ NO    | Visual size                                                                                        |
+| `color`          | `'default' \| 'neutral' \| 'primary' \| ...`               | ❌ NO    | Fill color when checked                                                                             |
+| `class`          | `string`                                                    | ❌ NO    | Extra Tailwind classes on `<input>`                                                                 |
+| `onChange`       | `(checked: boolean) => void`                                | ❌ NO    | Fires with `true`/`false` on user interaction. NOT fired when `indeterminate` or `disabled`.        |
 
 ---
 
-## SIZE REFERENCE
+## CONTROLLED vs UNCONTROLLED
 
-| Value | CSS `--size` | Pixel size |
-|-------|-------------|------------|
-| `'xs'`| `14px`      | 14 × 14px  |
-| `'sm'`| `16px`      | 16 × 16px  |
-| `'md'`| `18px`      | 18 × 18px  |
-| `'lg'`| `20px`      | 20 × 20px  |
-| `'xl'`| `22px`      | 22 × 22px  |
+### Controlled — `checked` prop
 
----
-
-## COLOR REFERENCE
-
-| Value         | DaisyUI class        | Fill color when checked      |
-|---------------|----------------------|------------------------------|
-| `'default'`   | *(no class)*         | Default DaisyUI checkbox color |
-| `'neutral'`   | `checkbox-neutral`   | Neutral                      |
-| `'primary'`   | `checkbox-primary`   | Primary (default)            |
-| `'secondary'` | `checkbox-secondary` | Secondary                    |
-| `'accent'`    | `checkbox-accent`    | Accent                       |
-| `'info'`      | `checkbox-info`      | Info                         |
-| `'success'`   | `checkbox-success`   | Success                      |
-| `'warning'`   | `checkbox-warning`   | Warning                      |
-| `'error'`     | `checkbox-error`     | Error                        |
-
----
-
-## UNCONTROLLED BEHAVIOR — Critical for agents
-
-This component is **uncontrolled** by design:
-
-- `defaultChecked` sets `ref.checked = value` once at mount via a `ref` callback
-- After mount, the DOM input's `checked` state is **the source of truth**
-- There is **no reactive signal** tracking checked state internally
-- Changing `defaultChecked` after mount does **nothing** — the DOM state is not updated
-- To read current checked state, use `onChange` callback or query the DOM via `ref`
+Parent owns state. Component always renders what `checked` says.
 
 ```tsx
-// ✅ Correct: read state through onChange
-const [checked, setChecked] = createSignal(false);
+const [agreed, setAgreed] = createSignal(false);
 
 <Checkbox
-  defaultChecked={false}
-  onChange={val => setChecked(val)}
+  checked={agreed()}
+  onChange={val => setAgreed(val)}
+  color="primary"
+  size="md"
 />
-
-// ❌ Wrong: changing defaultChecked after mount has no effect
-const [init, setInit] = createSignal(false);
-<Checkbox defaultChecked={init()} />  // reactive update ignored after first render
 ```
+
+**Use when**: you need to toggle from outside, derive state from other signals, or sync with form stores.
+
+### Uncontrolled — `defaultChecked` prop
+
+DOM owns state after mount. Use `onChange` to read changes.
+
+```tsx
+<Checkbox
+  defaultChecked={false}
+  onChange={val => console.log(val)}
+  color="primary"
+  size="md"
+/>
+```
+
+**Use when**: simple standalone checkbox, no external state needed, native form submission.
+
+> ⚠️ Never mix `checked` and `defaultChecked` — TypeScript enforces mutual exclusion.
+> ⚠️ Never pass a reactive signal to `defaultChecked` — it's mount-only, updates are ignored.
 
 ---
 
 ## INDETERMINATE STATE
 
-When `indeterminate={true}`:
-- Renders a **dash/minus** visual (clip-path polygon in CSS)
-- `data-indeterminate="true"` is set on the `<input>`
-- `value` prop is overridden to `'indeterminate'` (note: typo in source — single 'r')
-- `onClick` calls `e.preventDefault()` — **user cannot toggle** the checkbox
-- `onChange` is **never fired** (click is blocked)
-- Useful for "select all" parent checkboxes when only some children are selected
+`indeterminate` is always **controlled** — parent must manage when to show/clear it.
+
+- Synced to DOM property `input.indeterminate` via `createEffect` — reactive updates work
+- Sets `data-indeterminate="true"` attribute for CSS targeting
+- `onClick` calls `e.preventDefault()` — user cannot toggle
+- `onChange` is never fired
 
 ```tsx
-// Indeterminate "select all" pattern
+// Select-all pattern — indeterminate reacts to child changes
+const [items, setItems] = createSignal([
+  { label: 'A', checked: true },
+  { label: 'B', checked: false },
+]);
 const allChecked = () => items().every(i => i.checked);
 const someChecked = () => items().some(i => i.checked);
 
 <Checkbox
-  defaultChecked={allChecked()}
+  checked={allChecked()}
   indeterminate={someChecked() && !allChecked()}
-  onChange={val => items().forEach(i => i.setChecked(val))}
+  onChange={val => setItems(prev => prev.map(i => ({ ...i, checked: val })))}
 />
 ```
 
-> ⚠️ Because `indeterminate` blocks user toggling, the state change must be driven externally (e.g. by updating items and re-rendering).
-
 ---
 
-## ADDING A LABEL
+## FORM USAGE — `name` + `value`
 
-`Checkbox` renders only an `<input>` — no label wrapper is included. Use a native `<label>` element:
-
-### Label to the right (most common)
-```tsx
-<label class="flex cursor-pointer items-center gap-2">
-  <Checkbox defaultChecked={false} color="primary" size="md" />
-  <span>Accept terms</span>
-</label>
-```
-
-### Label to the left
-```tsx
-<label class="flex cursor-pointer items-center gap-2">
-  <span>Accept terms</span>
-  <Checkbox defaultChecked={false} color="primary" size="md" />
-</label>
-```
-
-### Label below
-```tsx
-<label class="flex w-fit cursor-pointer flex-col items-center gap-1">
-  <Checkbox defaultChecked={false} color="primary" size="md" />
-  <span class="text-sm">Agree</span>
-</label>
-```
-
-### External label via `id`
-```tsx
-<label for="terms-cb" class="cursor-pointer text-sm">Accept terms</label>
-<Checkbox id="terms-cb" defaultChecked={false} color="primary" />
-```
-
-> ℹ️ Always add `cursor-pointer` to `<label>` for correct UX.
-
----
-
-## FORM USAGE
-
-Use `name` and `value` props for native HTML form submission:
+`value` is a standard HTML attribute. When checkbox is **checked** and form is submitted, browser sends `name=value`. When unchecked, nothing is sent.
 
 ```tsx
 <form onSubmit={e => {
   e.preventDefault();
   const data = new FormData(e.currentTarget);
-  console.log(Object.fromEntries(data.entries()));
+  console.log([...data.entries()]);
+  // checked: [["interests", "typescript"]]
+  // unchecked: []
 }}>
   <label class="flex cursor-pointer items-center gap-2">
-    <Checkbox name="interests" value="technology" defaultChecked={false} />
-    <span>Technology</span>
+    <Checkbox name="interests" value="typescript" defaultChecked={false} />
+    <span>TypeScript</span>
   </label>
   <label class="flex cursor-pointer items-center gap-2">
-    <Checkbox name="interests" value="design" defaultChecked={false} />
-    <span>Design</span>
+    <Checkbox name="interests" value="solidjs" defaultChecked={false} />
+    <span>SolidJS</span>
   </label>
   <button type="submit">Submit</button>
 </form>
 ```
 
-> ⚠️ When `indeterminate={true}`, `value` is automatically overridden to `'indeterminate'` regardless of what was passed.
+---
+
+## SIZE REFERENCE
+
+| Value | Pixel size |
+|-------|------------|
+| `'xs'`| 14 × 14px  |
+| `'sm'`| 16 × 16px  |
+| `'md'`| 18 × 18px  |
+| `'lg'`| 20 × 20px  |
+| `'xl'`| 22 × 22px  |
+
+---
+
+## COLOR REFERENCE
+
+| Value         | DaisyUI class        |
+|---------------|----------------------|
+| `'default'`   | *(no class)*         |
+| `'neutral'`   | `checkbox-neutral`   |
+| `'primary'`   | `checkbox-primary`   |
+| `'secondary'` | `checkbox-secondary` |
+| `'accent'`    | `checkbox-accent`    |
+| `'info'`      | `checkbox-info`      |
+| `'success'`   | `checkbox-success`   |
+| `'warning'`   | `checkbox-warning`   |
+| `'error'`     | `checkbox-error`     |
+
+---
+
+## ADDING A LABEL
+
+```tsx
+// Label to the right (most common)
+<label class="flex cursor-pointer items-center gap-2">
+  <Checkbox defaultChecked={false} color="primary" size="md" />
+  <span>Accept terms</span>
+</label>
+
+// External label via id
+<label for="terms-cb" class="cursor-pointer text-sm">Accept terms</label>
+<Checkbox id="terms-cb" defaultChecked={false} color="primary" />
+```
+
+> ℹ️ Always add `cursor-pointer` to `<label>`.
 
 ---
 
@@ -205,31 +212,16 @@ Use `name` and `value` props for native HTML form submission:
   id="{id | auto}"
   class="checkbox checkbox-{size} checkbox-{color} [class]"
   disabled={disabled}
-  name="{name}"                          ← only if name prop provided
-  data-indeterminate="true"              ← only if indeterminate={true}
-  value="{value | 'indeterminate'}"
-  onClick={...}                          ← preventDefault when indeterminate or disabled
-  onChange={...}                         ← fires p.onChange with e.target.checked
+  name="{name}"                ← only if name prop provided
+  data-indeterminate="true"   ← only if indeterminate={true}
+  checked={checked}           ← only in controlled mode
+  value="{value}"
+  onClick={...}               ← preventDefault when indeterminate or disabled
+  onChange={...}              ← fires p.onChange with e.target.checked
 />
 ```
 
----
-
-## BEHAVIOR NOTES FOR AGENTS
-
-1. **Uncontrolled — `defaultChecked` is mount-only** — do not pass a reactive signal to `defaultChecked` expecting it to control the checkbox. Use `onChange` to lift state up.
-
-2. **`id` is auto-generated** — every `Checkbox` without an explicit `id` gets a unique ID from SolidJS `createUniqueId()`. No collision risk, but the value is not predictable. Pass explicit `id` when you need `<label for="...">` linkage.
-
-3. **`indeterminate` blocks both click and `onChange`** — `onClick` calls `e.preventDefault()`, so `onChange` never fires. The indeterminate state must be managed entirely by the parent.
-
-4. **`disabled` and `indeterminate` together** — both conditions independently call `e.preventDefault()` in the same `onClick` handler. Either alone is sufficient to block toggling.
-
-5. **`name` is conditionally spread** — if `name` is `undefined`, the attribute is NOT rendered on the DOM (using `{...(p.name && { name: p.name })}`). This avoids empty `name=""` on the input.
-
-6. **`class` appends to generated classes** — CVA generates `checkbox checkbox-{size} checkbox-{color}`, then `p.class` is appended via `cn()`. Use for shape overrides (`rounded-full`), border tweaks, shadows, etc.
-
-7. **`onChange` receives `boolean | null`** — the signature accepts `null` for future indeterminate support, but current implementation always passes `e.target.checked` (boolean). Handle both types defensively.
+`input.indeterminate` DOM property is synced separately via `createEffect`.
 
 ---
 
@@ -237,57 +229,62 @@ Use `name` and `value` props for native HTML form submission:
 
 | Mistake | Correct approach |
 |---|---|
-| Treating `defaultChecked` as reactive | It's mount-only — use `onChange` to track state in a signal |
-| Expecting `onChange` to fire when `indeterminate={true}` | `onClick` is blocked — `onChange` never fires in indeterminate state |
-| Omitting `cursor-pointer` on wrapping `<label>` | Always add `cursor-pointer` to `<label>` for correct UX |
-| Passing `value="indeterminate"` manually | When `indeterminate={true}`, value is auto-set — no need to pass it |
-| Using `color="default"` expecting a specific color | `'default'` applies no color class — checkbox uses browser/DaisyUI base style |
-| Relying on `id` being stable without explicit prop | Auto-generated IDs are unique but unpredictable — pass explicit `id` when needed for `<label for>` |
+| `<Checkbox checked={sig()} defaultChecked={false} />` | Use one or the other — TypeScript will error |
+| Passing reactive signal to `defaultChecked` | Use `checked` prop for reactive control |
+| Expecting `onChange` when `indeterminate={true}` | `onClick` is blocked — `onChange` never fires |
+| Managing indeterminate internally | `indeterminate` is always a controlled prop — parent drives it |
+| Omitting `cursor-pointer` on `<label>` | Always add for correct UX |
 
 ---
 
-## FULL EXAMPLE — All features
+## FULL EXAMPLE
 
 ```tsx
 import { Checkbox } from 'solid-tom-ui';
-import { createSignal } from 'solid-js';
+import { createSignal, For } from 'solid-js';
 
-// 1. Basic with label
-<label class="flex cursor-pointer items-center gap-2">
-  <Checkbox defaultChecked={false} color="primary" size="md" />
-  <span>Accept terms and conditions</span>
-</label>
-
-// 2. Controlled state via onChange
+// 1. Controlled
 const [agreed, setAgreed] = createSignal(false);
-
 <label class="flex cursor-pointer items-center gap-2">
-  <Checkbox
-    defaultChecked={false}
-    color="success"
-    size="sm"
-    onChange={val => setAgreed(val)}
-  />
+  <Checkbox checked={agreed()} onChange={setAgreed} color="success" size="md" />
   <span>I agree ({agreed() ? 'Yes' : 'No'})</span>
 </label>
 
-// 3. Indeterminate — select all pattern
+// 2. Uncontrolled
+<label class="flex cursor-pointer items-center gap-2">
+  <Checkbox defaultChecked={false} onChange={val => console.log(val)} color="primary" size="md" />
+  <span>Accept terms</span>
+</label>
+
+// 3. Select-all with indeterminate
 const [items, setItems] = createSignal([
-  { label: 'Item A', checked: true },
-  { label: 'Item B', checked: false },
+  { label: 'A', checked: true },
+  { label: 'B', checked: false },
 ]);
 const allChecked = () => items().every(i => i.checked);
 const someChecked = () => items().some(i => i.checked);
 
 <label class="flex cursor-pointer items-center gap-2">
   <Checkbox
-    defaultChecked={allChecked()}
+    checked={allChecked()}
     indeterminate={someChecked() && !allChecked()}
-    color="primary"
+    onChange={val => setItems(p => p.map(i => ({ ...i, checked: val })))}
     size="md"
   />
-  <span class="font-semibold">Select all</span>
+  <span>Select all</span>
 </label>
+<For each={items()}>
+  {(item, idx) => (
+    <label class="flex cursor-pointer items-center gap-2">
+      <Checkbox
+        checked={item.checked}
+        onChange={() => setItems(p => p.map((i, n) => n === idx() ? { ...i, checked: !i.checked } : i))}
+        size="sm"
+      />
+      <span>{item.label}</span>
+    </label>
+  )}
+</For>
 
 // 4. Disabled
 <label class="flex cursor-pointer items-center gap-2 opacity-50">
@@ -301,24 +298,10 @@ const someChecked = () => items().some(i => i.checked);
     <Checkbox name="lang" value="typescript" defaultChecked={true} size="sm" />
     <span>TypeScript</span>
   </label>
-  <label class="flex cursor-pointer items-center gap-2">
-    <Checkbox name="lang" value="rust" defaultChecked={false} size="sm" />
-    <span>Rust</span>
-  </label>
   <button type="submit" class="btn btn-sm btn-primary mt-2">Submit</button>
 </form>
-
-// 6. Custom styling
-<label class="flex cursor-pointer items-center gap-2">
-  <Checkbox
-    defaultChecked={true}
-    color="accent"
-    size="lg"
-    class="rounded-full shadow-lg"
-  />
-  <span>Rounded pill checkbox</span>
-</label>
 ```
+
 ---
 
 ## Component Conventions

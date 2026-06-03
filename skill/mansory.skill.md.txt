@@ -1,0 +1,356 @@
+## COMPONENT IDENTITY
+- **Import**: `import { Mansory } from 'solid-tom-ui';`
+- **Export**: `Mansory` (named export)
+- **Framework**: SolidJS
+- **Purpose**: High-performance masonry layout — items positioned via `translate3d` with absolute layout computed in JS. Supports responsive columns, responsive gap, virtual scrolling, and infinite scroll.
+
+---
+
+## TYPE SIGNATURE
+
+```ts
+type MansoryBreakpoint = 'default' | 'sm' | 'md' | 'lg' | 'xl' | '2xl';
+type MansoryResponsive<T> = Partial<Record<MansoryBreakpoint, T>>;
+
+interface MansoryVirtualOptions {
+  overscan?: number;
+}
+
+interface MansoryProps<T = any> {
+  items: T[];
+  children: (item: T, index: Accessor<number>, style: JSX.CSSProperties) => JSX.Element;
+  columns?: number | MansoryResponsive<number>;
+  gap?: string | MansoryResponsive<string>;
+  virtual?: boolean | MansoryVirtualOptions;
+  estimateItemHeight?: number;
+  onLoadMore?: () => void;
+  loadMoreThreshold?: number;
+  getItemKey?: (item: T, index: number) => string | number;
+  class?: string;
+  itemClass?: string;
+}
+
+interface MansoryItemLayout {
+  index: number;
+  top: number;
+  left: number;
+  width: number;
+  height: number;
+}
+```
+
+---
+
+## DEFAULT VALUES (via `mergeProps`)
+
+| Prop                | Default                                               |
+|---------------------|-------------------------------------------------------|
+| `columns`           | `{ default: 1, sm: 2, md: 3, lg: 4 }`                |
+| `gap`               | `'gap-4'`                                             |
+| `virtual`           | `false`                                               |
+| `estimateItemHeight`| `200`                                                 |
+| `loadMoreThreshold` | `200`                                                 |
+
+---
+
+## PROP REFERENCE
+
+| Prop                 | Type                                                                             | Required | Description                                                                                                   |
+|----------------------|----------------------------------------------------------------------------------|----------|---------------------------------------------------------------------------------------------------------------|
+| `items`              | `T[]`                                                                            | ✅ YES   | Array of data items to render                                                                                  |
+| `children`           | `(item: T, index: Accessor<number>, style: JSX.CSSProperties) => JSX.Element`    | ✅ YES   | Render function per item. **Always apply `style` to the item root** — it carries the computed column `width`. |
+| `columns`            | `number \| MansoryResponsive<number>`                                            | ❌ NO    | Column count. Fixed number or responsive map per breakpoint.                                                   |
+| `gap`                | `string \| MansoryResponsive<string>`                                            | ❌ NO    | Tailwind `gap-*` class (e.g. `'gap-6'`). Supports responsive map.                                             |
+| `virtual`            | `boolean \| MansoryVirtualOptions`                                               | ❌ NO    | Enable virtual scrolling. Pass `true` or `{ overscan: N }`. Requires fixed height + `overflow-y-auto` on container. |
+| `estimateItemHeight` | `number`                                                                         | ❌ NO    | Initial height estimate (px) before `ResizeObserver` measures real heights. Closer = less layout shift.        |
+| `onLoadMore`         | `() => void`                                                                     | ❌ NO    | Called when scroll nears bottom. Built-in 10 s cooldown resets when `items.length` changes.                   |
+| `loadMoreThreshold`  | `number`                                                                         | ❌ NO    | Distance from bottom (px) that triggers `onLoadMore`.                                                          |
+| `getItemKey`         | `(item: T, index: number) => string \| number`                                   | ❌ NO    | Stable key extractor. **Required with `virtual`** — prevents DOM thrashing when items mount/unmount.           |
+| `class`              | `string`                                                                         | ❌ NO    | Extra classes on outer container. Add `h-[Npx] overflow-y-auto` here when using `virtual`.                    |
+| `itemClass`          | `string`                                                                         | ❌ NO    | Extra classes applied to every item wrapper element.                                                           |
+
+### MansoryResponsive breakpoints
+
+Breakpoints match Tailwind defaults and are resolved against **container width** (not viewport):
+
+| Key     | Min width |
+|---------|-----------|
+| `sm`    | 640 px    |
+| `md`    | 768 px    |
+| `lg`    | 1024 px   |
+| `xl`    | 1280 px   |
+| `2xl`   | 1536 px   |
+| `default` | fallback (any width below first matched breakpoint) |
+
+---
+
+## BASIC USAGE
+
+```tsx
+import { Mansory } from 'solid-tom-ui';
+
+<Mansory
+  items={items}
+  columns={{ default: 1, sm: 2, md: 3, lg: 4 }}
+  gap="gap-4"
+>
+  {(item, _index, style) => (
+    <div style={style} class="rounded-lg bg-base-200 p-4">
+      {item.title}
+    </div>
+  )}
+</Mansory>
+```
+
+> ⚠️ Always apply `style` to the item root element. It contains `{ width: "Npx" }` computed by the layout engine. Omitting it causes items to overflow their column.
+
+---
+
+## FIXED COLUMNS
+
+```tsx
+<Mansory items={items} columns={3} gap="gap-6">
+  {(item, _index, style) => (
+    <div style={{ ...style, height: `${item.height}px` }} class="rounded-xl bg-primary/10 p-4">
+      {item.title}
+    </div>
+  )}
+</Mansory>
+```
+
+---
+
+## RESPONSIVE GAP
+
+Both `columns` and `gap` accept `MansoryResponsive<T>` maps:
+
+```tsx
+<Mansory
+  items={items}
+  columns={{ default: 1, sm: 2, md: 3 }}
+  gap={{ default: 'gap-2', sm: 'gap-4', md: 'gap-6' }}
+>
+  {(item, _index, style) => <div style={style}>...</div>}
+</Mansory>
+```
+
+---
+
+## VIRTUAL SCROLLING
+
+Only renders items in viewport + overscan buffer. Requires a **fixed-height scrollable container**.
+
+```tsx
+<Mansory
+  items={largeList}
+  columns={{ default: 2, sm: 3, md: 4 }}
+  gap="gap-3"
+  virtual={{ overscan: 8 }}
+  estimateItemHeight={200}
+  getItemKey={item => item.id}
+  class="h-[600px] overflow-y-auto rounded-lg border border-base-content/10"
+>
+  {(item, _index, style) => (
+    <div style={{ ...style, height: `${item.height}px` }} class="rounded-md bg-base-200 p-3">
+      {item.title}
+    </div>
+  )}
+</Mansory>
+```
+
+- Pass `virtual={true}` for default overscan of 5, or `virtual={{ overscan: N }}` to tune.
+- **`getItemKey` is required** — without a stable key, items near viewport edges lose measured heights and cause layout jumps.
+
+---
+
+## INFINITE SCROLL
+
+```tsx
+const [items, setItems] = createSignal(initialItems());
+const [loading, setLoading] = createSignal(false);
+
+function loadMore() {
+  if (loading()) return;
+  setLoading(true);
+  fetchNextPage().then(next => {
+    setItems(prev => [...prev, ...next]);
+    setLoading(false);
+  });
+}
+
+<Mansory
+  items={items()}
+  columns={{ default: 1, sm: 2, md: 3 }}
+  gap="gap-3"
+  onLoadMore={loadMore}
+  loadMoreThreshold={300}
+  virtual={{ overscan: 3 }}
+  estimateItemHeight={180}
+  class="h-[600px] rounded-lg border border-base-content/10 p-3"
+>
+  {(item, _index, style) => (
+    <div style={{ ...style, height: `${item.height}px` }} class="rounded-lg bg-base-200 p-3">
+      {item.title}
+    </div>
+  )}
+</Mansory>
+
+{loading() && (
+  <div class="flex w-full items-center justify-center py-4">
+    <span class="loading loading-spinner loading-md" />
+  </div>
+)}
+```
+
+`onLoadMore` fires once per scroll event that passes the threshold, then enters a 10-second cooldown. Cooldown resets automatically when `items.length` changes — calling `setItems` after a fetch re-arms it.
+
+---
+
+## IMAGE GALLERY (with `getItemKey`)
+
+```tsx
+<Mansory
+  items={photos}
+  columns={{ default: 1, sm: 2, md: 3, lg: 4 }}
+  gap="gap-4"
+  getItemKey={photo => photo.id}
+>
+  {(photo, _index, style) => (
+    <div style={style} class="overflow-hidden rounded-xl">
+      <img
+        src={photo.src}
+        alt={photo.alt}
+        loading="lazy"
+        class="w-full object-cover"
+        style={{ height: `${photo.height}px` }}
+      />
+    </div>
+  )}
+</Mansory>
+```
+
+---
+
+## INTERNAL DOM STRUCTURE
+
+```
+<div class="ma01 [ma05 if virtual] [class]" onScroll={...}>       ← outer container
+  <div class="ma02" style="height: {totalHeight}px">              ← inner absolute canvas
+    <div                                                           ← per item wrapper
+      class="ma03 ma04 [itemClass]"
+      data-mansory-idx="{n}"
+      style="width:{w}px; transform:translate3d({x}px,{y}px,0)"
+    >
+      {children(item, index, { width: "{w}px" })}                 ← user render fn
+    </div>
+    ...
+  </div>
+
+  <div class="ma08">No items</div>                                ← shown when items=[]
+</div>
+```
+
+Layout engine: greedy shortest-column algorithm. Each item is placed in the column with the smallest current height. Heights are measured via `ResizeObserver` after mount, then the layout recomputes reactively.
+
+---
+
+## COMMON MISTAKES TO AVOID
+
+| Mistake | Correct approach |
+|---|---|
+| Not applying `style` from render fn | `<div style={style}>` or `style={{ ...style, height: '...' }}` on item root |
+| `virtual` without fixed height container | Add `h-[Npx] overflow-y-auto` to `class` prop |
+| `virtual` without `getItemKey` | Always provide `getItemKey={item => item.id}` with virtual mode |
+| Arbitrary CSS in `gap` prop | Use Tailwind `gap-*` class only — component measures `column-gap` via DOM probe |
+| Reactive signal in `estimateItemHeight` | Static number only — it's an initial estimate, not a reactive binding |
+| Expecting instant `onLoadMore` re-trigger | 10 s cooldown applies — update `items` to reset it |
+
+---
+
+## FULL EXAMPLE
+
+```tsx
+import { Mansory } from 'solid-tom-ui';
+import { createSignal } from 'solid-js';
+
+interface Card {
+  id: number;
+  title: string;
+  height: number;
+}
+
+const allItems: Card[] = Array.from({ length: 100 }, (_, i) => ({
+  id: i + 1,
+  title: `Card ${i + 1}`,
+  height: 120 + Math.floor(Math.random() * 200),
+}));
+
+// 1. Basic responsive masonry
+<Mansory items={allItems.slice(0, 12)} columns={{ default: 1, sm: 2, md: 3, lg: 4 }} gap="gap-4">
+  {(item, _index, style) => (
+    <div style={{ ...style, height: `${item.height}px` }} class="rounded-lg bg-base-200 p-4 flex items-center justify-center">
+      <span class="font-semibold">{item.title}</span>
+    </div>
+  )}
+</Mansory>
+
+// 2. Virtual scrolling — large list
+<Mansory
+  items={allItems}
+  columns={{ default: 2, sm: 3, md: 4 }}
+  gap="gap-3"
+  virtual={{ overscan: 8 }}
+  estimateItemHeight={180}
+  getItemKey={item => item.id}
+  class="h-[600px] overflow-y-auto rounded-lg border border-base-content/10"
+>
+  {(item, _index, style) => (
+    <div style={{ ...style, height: `${item.height}px` }} class="rounded-md bg-primary/10 p-3 flex items-center justify-center">
+      <span class="text-sm font-semibold">{item.title}</span>
+    </div>
+  )}
+</Mansory>
+
+// 3. Infinite scroll
+const [items, setItems] = createSignal(allItems.slice(0, 20));
+const [loading, setLoading] = createSignal(false);
+let page = 2;
+
+function loadMore() {
+  if (loading()) return;
+  setLoading(true);
+  setTimeout(() => {
+    setItems(prev => [...prev, ...allItems.slice((page - 1) * 10, page * 10)]);
+    page++;
+    setLoading(false);
+  }, 800);
+}
+
+<Mansory
+  items={items()}
+  columns={{ default: 1, sm: 2, md: 3 }}
+  gap="gap-4"
+  onLoadMore={loadMore}
+  loadMoreThreshold={300}
+  class="h-[500px] overflow-y-auto rounded-lg border border-base-content/10 p-3"
+>
+  {(item, _index, style) => (
+    <div style={{ ...style, height: `${item.height}px` }} class="rounded-lg bg-secondary/10 p-3 flex items-center justify-center">
+      <span class="font-semibold">{item.title}</span>
+    </div>
+  )}
+</Mansory>
+{loading() && (
+  <div class="flex w-full justify-center py-4">
+    <span class="loading loading-spinner loading-md" />
+  </div>
+)}
+```
+
+---
+
+## Component Conventions
+
+> **CSS encoding**: internal CSS classes use short encoded names (`ma01`–`ma09`) per project convention.
+> **No `color` prop** — `Mansory` is a layout-only component with no color variant system.
+> **Container-based breakpoints** — responsive resolution uses container width, not `window.innerWidth`. Works correctly inside sidebars, modals, and panels.

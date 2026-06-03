@@ -1,13 +1,51 @@
 ## COMPONENT IDENTITY
-- **Import**: `import { Input } from 'solid-tom-ui';`
-- **Export**: `Input` (main router component with sub-components attached)
 - **Framework**: SolidJS
-- **Purpose**: Unified input router — the `type` prop selects which variant renders (text, textarea, password, number, color, date, range, OTP)
+- **Purpose**: Unified input router — the `type` prop selects which variant renders (text, textarea, password, number, color, date, range, OTP, radio)
+
+## IMPORT PATTERNS
+
+### Option A — Unified router (simple, NOT tree-shakeable)
+Loads ALL 9 variants into the bundle regardless of which type is used.
+Use only when you need multiple variants in the same file/page.
+
+```tsx
+import { Input } from 'solid-tom-ui';
+
+<Input type="text" ... />         // router syntax
+<Input.Text ... />                // sub-component syntax (same bundle cost)
+```
+
+### Option B — Direct variant import (tree-shakeable, RECOMMENDED)
+Only loads the specific variant. Other variants are excluded from the bundle.
+
+```tsx
+import { InputText } from 'solid-tom-ui';
+import { InputPassword } from 'solid-tom-ui';
+import { InputOTP } from 'solid-tom-ui';
+
+<InputText placeholder="Enter name..." />
+<InputPassword placeholder="Enter password..." />
+<InputOTP length={6} onComplete={handleOTP} />
+```
+
+**Available named exports:**
+
+| Named export    | Equivalent to       |
+|-----------------|---------------------|
+| `InputText`     | `Input.Text`        |
+| `InputTextArea` | `Input.TextArea`    |
+| `InputPassword` | `Input.Password`    |
+| `InputNumber`   | `Input.Number`      |
+| `InputColor`    | `Input.Color`       |
+| `InputDate`     | `Input.Date`        |
+| `InputRange`    | `Input.Range`       |
+| `InputOTP`      | `Input.OTP`         |
+| `InputRadio`    | `Input.Radio`       |
 
 ## SUB-COMPONENTS & MOUNT POINTS
 
 ```
-Input                   → routes based on type prop
+Input                   → routes based on type prop (bundles all variants)
 ├── Input.Text          → type="text"
 ├── Input.TextArea      → type="textarea"
 ├── Input.Password      → type="password"
@@ -15,14 +53,8 @@ Input                   → routes based on type prop
 ├── Input.Color         → type="color"
 ├── Input.Date          → type="date"
 ├── Input.Range         → type="range" (delegates to Slider)
-└── Input.OTP           → type="otp"
-```
-
-Both syntaxes are valid:
-
-```tsx
-<Input type="text" ... />         // router syntax
-<Input.Text type="text" ... />    // direct sub-component syntax
+├── Input.OTP           → type="otp"
+└── Input.Radio         → type="radio"
 ```
 
 ---
