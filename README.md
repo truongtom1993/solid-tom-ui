@@ -83,6 +83,50 @@ function App() {
 
 ---
 
+## AI Assistant (MCP)
+
+Connect Claude or any MCP-compatible AI client to get accurate component docs and code generation directly inside your AI assistant.
+
+**Endpoint:** `https://solid-tom-ui.netlify.app/.netlify/functions/mcp`
+
+### Claude Desktop
+
+Claude Desktop only supports local stdio MCP servers. Use [`mcp-remote`](https://www.npmjs.com/package/mcp-remote) as a bridge (no installation required — `npx` fetches it automatically):
+
+Add to `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) or `%APPDATA%\Claude\claude_desktop_config.json` (Windows):
+
+```json
+{
+  "mcpServers": {
+    "solid-tom-ui": {
+      "command": "npx",
+      "args": [
+        "mcp-remote",
+        "https://solid-tom-ui.netlify.app/.netlify/functions/mcp"
+      ]
+    }
+  }
+}
+```
+
+Restart Claude Desktop.
+
+### Claude Code (CLI)
+
+```bash
+claude mcp add solid-tom-ui --transport http https://solid-tom-ui.netlify.app/.netlify/functions/mcp
+```
+
+### Available tools
+
+| Tool | Description |
+|------|-------------|
+| `list_components` | List all 45+ components with import paths |
+| `get_component_docs` | Full prop reference for any component |
+| `generate_component_code` | Scaffold SolidJS code using one or more components |
+
+---
+
 ## Advanced Setup (Custom Theme)
 
 Overwrite css variable 
