@@ -1,6 +1,6 @@
 {
   "name": "solid-tom-ui",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "description": "SolidJS UI component library (Ant Design–inspired, Tailwind CSS + DaisyUI)",
   "homepage": "https://solid-tom-ui.netlify.app/",
   "repository": {
@@ -32,14 +32,14 @@
     "**/*.css"
   ],
   "peerDependencies": {
-    "@tanstack/solid-table": ">=8.21.0",
-    "@tanstack/solid-virtual": ">=3.13.0",
-    "class-variance-authority": ">=0.7.0",
-    "clsx": ">=2.0.0",
-    "imask": ">=7.0.0",
-    "lucide-solid": ">=0.400.0",
-    "qrcode": ">=1.5.0",
-    "solid-js": ">=1.8.0",
-    "tailwind-merge": ">=3.0.0"
+    "@tanstack/solid-table": "~8.21.3",
+    "@tanstack/solid-virtual": "~3.13.37",
+    "class-variance-authority": "~0.7.1",
+    "clsx": "~2.1.1",
+    "imask": "~7.6.1",
+    "lucide-solid": "~0.469.0",
+    "qrcode": "~1.5.4",
+    "solid-js": "~1.9.15",
+    "tailwind-merge": "~3.6.0"
   }
 }
